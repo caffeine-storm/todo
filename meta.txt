@@ -1,0 +1,4 @@
+Some kinda display thing for this project.
+  Intermediate-representation-and-multiple-front-end based
+    json for the intermediate representation
+
