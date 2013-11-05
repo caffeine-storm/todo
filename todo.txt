@@ -1,0 +1,13 @@
+dmpd:
+	name: Distributed MPD
+	problem: Multiple machines have distinct music libraries
+	project: mpd multiplexer that merges the libraries
+	notes:
+		- A library is a tree of files.
+        - Each leaf in the tree is a track.
+        - Node collision is one of 2 cases
+			- Equivalent node? Fallback source!
+			- Inequivalent node? node-name.lib-name
+		- Node equivalence by hash of node content
+			- Use a non-crypto composable hash that you can remove/add subhashes quickly
+
