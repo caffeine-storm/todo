@@ -11,3 +11,6 @@ dmpd:
 		- Node equivalence by hash of node content
 			- Use a non-crypto composable hash that you can remove/add subhashes quickly
 
+screen/mpc integration:
+	- Have the output from 'mpc current' on screen's status line
+
