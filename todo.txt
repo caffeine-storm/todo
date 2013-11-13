@@ -14,3 +14,5 @@ dmpd:
 screen/mpc integration:
 	- Have the output from 'mpc current' on screen's status line
 
+open.gl has a nice-at-first-glance tutorial
+
