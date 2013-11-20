@@ -14,3 +14,11 @@ dmpd:
 screen/mpc integration:
 	- Have the output from 'mpc current' on screen's status line
 
+make daemon
+	name:
+	problem: During development I don't want to manually invoke build commands anymore
+	project: system-level daemon that watches source directories and invokes builds automagically
+	notes:
+		- Error reporting through 'tail -f /var/log/<name>'
+		- Need to worry about different types of build systems
+
