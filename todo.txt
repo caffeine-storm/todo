@@ -22,3 +22,5 @@ make daemon
 		- Error reporting through 'tail -f /var/log/<name>'
 		- Need to worry about different types of build systems
 
+http://open.gl has a nice-at-first-glance tutorial
+
