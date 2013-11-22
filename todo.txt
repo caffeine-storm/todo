@@ -31,3 +31,5 @@ Stale dependency detector
 	notes:
 		- Naive sol'n: try to compile without a given #include
 
+add soundcloud link to mpd
+
