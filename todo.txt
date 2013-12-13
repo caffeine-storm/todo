@@ -33,3 +33,5 @@ Stale dependency detector
 
 add soundcloud link to mpd
 
+Poor man's continuation library for c++
+
