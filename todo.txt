@@ -11,9 +11,6 @@ dmpd:
 		- Node equivalence by hash of node content
 			- Use a non-crypto composable hash that you can remove/add subhashes quickly
 
-screen/mpc integration:
-	- Have the output from 'mpc current' on screen's status line
-
 make daemon
 	name: ???
 	problem: During development I don't want to manually invoke build commands anymore
@@ -26,7 +23,7 @@ http://open.gl has a nice-at-first-glance tutorial
 
 Stale dependency detector
 	name: ???
-	problem: '#include' directives that aren't needed make c/c++ projects take longer to compile and introduce dependencies that aren't beneficial.
+	problem: '#include' directives that aren't needed make c/c++ projects take longer to compile and introduce unnecessary dependencies.
 	project: identify #include directives that aren't required for successful compilation.
 	notes:
 		- Naive sol'n: try to compile without a given #include
@@ -37,4 +34,15 @@ Poor man's continuation library for c++
 
 gitfs
 	- FUSE that uses git as the backing store
+
+portable stack trace library
+	name: libstacktrace
+	problem: I want legit and consistent stack traces from c/c++ apps regardless of platform or compiler
+	project: Write core data structures and platform specific handlers
+	notes:
+		- http://http://oroboro.com/stack-trace-on-crash/
+			- sigaction to trap POSIX signals
+			- g++: cxxabi to demangle
+			- backtrace, backtrace_symbols and backtrace_symbols_fd
+			- Windows: StackWalker
 
