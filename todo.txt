@@ -12,7 +12,7 @@ dmpd:
 			- Use a non-crypto composable hash that you can remove/add subhashes quickly
 
 make daemon
-	name: ???
+	name: maked
 	problem: During development I don't want to manually invoke build commands anymore
 	project: system-level daemon that watches source directories and invokes builds automagically
 	notes:
