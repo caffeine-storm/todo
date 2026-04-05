@@ -5,7 +5,7 @@ all: todo.png
 TXT2DOT:=txt2dot/bin/txt2dot
 
 # TODO: ought to be a better way to list source files for a Haskell package.
-TXT2DOT_SRCS:=txt2dot/app/Main.hs
+TXT2DOT_SRCS:=$(shell find txt2dot/app -name '*.hs')
 
 todo.png: todo.dot
 	dot -Tpng $^ > $@
