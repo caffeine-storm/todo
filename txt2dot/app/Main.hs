@@ -7,5 +7,5 @@ main :: IO ()
 main = do
     inputData <- readFile "/dev/stdin"
     let graph = fromJust $ Txt2Dot.parseText inputData
-        asDotText = Txt2Dot.showDot graph
+        asDotText = Txt2Dot.writeDot graph
     writeFile "/dev/stdout" (asDotText ++ "\n")

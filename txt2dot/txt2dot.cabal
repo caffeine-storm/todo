@@ -82,8 +82,9 @@ test-suite test-txt2dot
     type:             exitcode-stdio-1.0
     main-is:          Spec.hs
     other-modules:
-        MainSpec,
+        ParseSpec,
         Txt2Dot,
+        WriteSpec,
     build-tool-depends:
         hspec-discover:hspec-discover,
     build-depends:

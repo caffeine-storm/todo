@@ -1,5 +1,7 @@
 module Txt2Dot where
 
+import Data.List (intercalate)
+
 leadingTabCount :: String -> Int
 leadingTabCount =
     length . takeWhile (== '\t')
@@ -120,12 +122,96 @@ parseText :: String -> Maybe TodoGraph
 parseText input =
     getGraph $ foldl parseLine newParseState $ lines input
 
-data ShowState = ShowState
+type NodeId = String
+type LabelString = String
+
+data ShowStateNode = ShowStateNode NodeId LabelString
+
+escapeString :: String -> String
+escapeString "" = ""
+escapeString ('\\':rest) = "\\\\" ++ escapeString rest
+escapeString ('"':rest) = "\\\"" ++ escapeString rest
+escapeString (x:rest) = (x:escapeString rest)
+
+quoted :: String -> String
+quoted s = concat ["\"", escapeString s, "\""]
+
+instance Show ShowStateNode where
+  show (ShowStateNode nodeId label) = concat [(quoted nodeId), " [label=", quoted label, "];"]
+
+data ShowStateEdge = ShowStateEdge NodeId NodeId
+instance Show ShowStateEdge where
+  show (ShowStateEdge lhs rhs) = concat [(quoted lhs), " -> ", (quoted rhs), ";"]
+
+data ShowState = ShowState {
+  nodes :: [ShowStateNode],
+  edges :: [ShowStateEdge],
+
+  -- holds a stack of Ints tracking current size of parent nodes.
+  -- new level? nextId <- 0:nextId
+  -- new node? (newId, nextId) <- (
+  --     intercalate "_" (map show (reverse $ [succ $ head nextId] ++ nextId)),
+  --     (succ $ head nextId):(tail nextId)
+  -- )
+  -- Always non-empty
+  nextId :: [Int]
+} deriving(Show)
 newShowState :: ShowState
-newShowState = ShowState
+newShowState = ShowState {
+  nodes = [],
+  edges = [],
+  nextId = [0]
+}
 
--- TODO: use ShowState for easier showing
-showDot :: TodoGraph -> String
-showDot it@(TodoNode _ _) =
-    show it
+mintNextId :: ShowState -> (NodeId, ShowState)
+mintNextId ShowState{nextId = []} = error "malformed ShowState; nextId must be non-empty!"
+mintNextId st@ShowState{ nextId=(used:rest) } =
+  let siblingPosition = succ used
+      newid = intercalate "_" $ reverse $ map show $ (siblingPosition:rest)
+  in  (newid, st { nextId = siblingPosition:rest })
 
+addLevel :: ShowState -> ShowState
+addLevel st@ShowState{ nextId=idgen } =
+  st { nextId = (0:idgen) }
+
+popLevel :: ShowState -> ShowState
+popLevel st@ShowState{ nextId=(_:xs:xss) } =
+  st { nextId = (xs:xss) }
+popLevel _ = error "can only popLevel from non-root level"
+
+getDot :: ShowState -> String
+getDot ShowState{nodes=ns, edges=es} =
+  unlines [
+    "digraph {",
+    unlines $ map show $ reverse ns,
+    unlines $ map show es,
+    "}"
+  ]
+
+writeDot :: TodoGraph -> String
+-- TODO: subgraphs? each root should be a subgraph, right?
+writeDot g = getDot $ writeNodes [g]
+
+writeNodes :: [TodoGraph] -> ShowState
+writeNodes kids = foldl (\st -> writeNode' st 0) newShowState kids 
+
+-- TODO: depth is not used... ?
+writeNode' :: ShowState -> Int -> TodoGraph -> ShowState
+writeNode' st depth (TodoNode parentLabel kids) =
+  let
+      (st', parentNodeId) = addNodeWithLabel st parentLabel
+      st'' = addLevel st'
+      st''' = foldl (\accState -> writeNode' accState (succ depth)) st'' kids
+      st'''' = popLevel st'''
+      st''''' = addEdges st'''' parentNodeId kids
+  in  st'''''
+
+addNodeWithLabel :: ShowState -> String -> (ShowState, NodeId)
+addNodeWithLabel st lbl =
+  let (nodeId, st') = mintNextId st
+      newNode = ShowStateNode nodeId lbl
+  in  (st' { nodes = newNode:(nodes st) }, nodeId)
+
+addEdges :: ShowState -> NodeId -> [TodoGraph] -> ShowState
+addEdges st parent kids =
+  st { edges = [ShowStateEdge parent kidId | kidId <- [parent ++ "_" ++ (show n) | n <- [1 .. length kids]]] ++ (edges st) }
