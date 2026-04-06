@@ -120,7 +120,7 @@ parseLine st line =
 
 parseText :: String -> Maybe TodoGraph
 parseText input =
-    getGraph $ foldl parseLine newParseState $ lines input
+    getGraph $ foldl parseLine newParseState $ filter (/= "") $ lines input
 
 type NodeId = String
 type LabelString = String

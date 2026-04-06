@@ -32,3 +32,5 @@ spec = do
       (parseText "1\n2\n3\n") `shouldBe` (Just $ TodoNode "" [n1, n2, n3])
     it "keeps subitem ordering in tact" $ do
       (parseText "1_\n\t1\n\t2\n") `shouldBe` (Just $ TodoNode "1_" [n1, n2])
+    it "ignores empty lines" $ do
+      (parseText "1_\n\n\t1\n2\n") `shouldBe` (Just $ TodoNode "" [n1_1, n2])
