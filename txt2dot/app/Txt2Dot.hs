@@ -1,6 +1,7 @@
 module Txt2Dot where
 
 import Data.List (intercalate)
+import Data.Char (isSpace)
 
 leadingTabCount :: String -> Int
 leadingTabCount =
@@ -120,7 +121,10 @@ parseLine st line =
 
 parseText :: String -> Maybe TodoGraph
 parseText input =
-    getGraph $ foldl parseLine newParseState $ filter (/= "") $ lines input
+    getGraph $ foldl parseLine newParseState $ filter (not . isNoise) $ lines input
+    where
+      isNoise :: String -> Bool
+      isNoise = all isSpace
 
 type NodeId = String
 type LabelString = String
