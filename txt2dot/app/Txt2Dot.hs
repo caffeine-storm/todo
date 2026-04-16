@@ -36,30 +36,6 @@ newRoot state label =
         else
             state {roots = newRootNode:(roots state), curTabs=0}
 
--- Add a new node as a subnode to the last-parsed node.
--- TODO: look at number of tabs to know how far down the tree to go.
-{-
-subnode :: ParseState -> String -> ParseState
-subnode st@ParseState{roots=[]} label =
-    newRoot st label
-subnode st@ParseState{roots=roots, curTabs=curTabs} label =
-    let parent@(TodoNode lbl kids) = lastNode st
-        (tabs, newNode) = leafNode' label
-        replacement = parent `addChild` newNode
-    in st { roots = replacement:(tail $ roots), curTabs = tabs }
--}
-
--- Add a sibling node to the node that was last added to the graph.
--- TODO: use leading tab count to see how far down to go.
-{-
-sibling :: ParseState -> String -> ParseState
-sibling st label =
-    st { roots = newRoots }
-    where
-        (x:xs) = roots st
-        newRoots = (x `addChild` (leafNode label):xs)
--}
-
 addNode :: ParseState -> String -> ParseState
 addNode st@ParseState{roots=[]} label =
     newRoot st label
