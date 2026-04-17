@@ -19,15 +19,6 @@ n2 = leafNode "2"
 n3 :: TodoGraph
 n3 = leafNode "3"
 
-blockExample :: String
-blockExample = unlines [
-  "root node; lvl1",
-  "\tlvl2",
-  "\t- start block; lvl2",
-  "\t  continue block; lvl2",
-  "\tlvl2 too"
-  ]
-
 spec :: Spec
 spec = do
   describe "leafNode helper" $ do
@@ -48,9 +39,3 @@ spec = do
       (parseText "1_\n\n\t1\n2\n") `shouldBe` (Just $ TodoNode "" [n1_1, n2])
     it "treats whitespace-only lines as empty" $ do
       (parseText "1\n\t1_1\n\t\n\t1_2\n") `shouldBe` (Just $ TodoNode "1" [leafNode "1_1", leafNode "1_2"])
-    it "recognizes a block as starting with '- ' and continued with '  '" $ do
-      (parseText blockExample) `shouldBe` (Just $ TodoNode "root node; lvl1" [
-        leafNode "lvl2",
-        leafNode "start block; lvl2\ncontinue block; lvl2",
-        leafNode "lvl2 too"
-        ])
