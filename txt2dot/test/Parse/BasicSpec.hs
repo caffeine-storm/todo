@@ -1,4 +1,4 @@
-module ParseSpec (spec) where
+module Parse.BasicSpec (spec) where
 
 import Test.Hspec
 import Txt2Dot (parseText, TodoGraph(TodoNode), leafNode)
