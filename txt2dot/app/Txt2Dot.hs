@@ -30,7 +30,7 @@ data ParseState = ParseState{
   curTabs :: Int,
   currentBlock :: [String]
   }
-    deriving(Show)
+  deriving(Show)
 
 newParseState :: ParseState
 newParseState = ParseState{roots = [], curTabs = -1, currentBlock = []}
@@ -39,8 +39,34 @@ isParsingBlock :: ParseState -> Bool
 isParsingBlock ParseState{currentBlock=[]} = False
 isParsingBlock _ = True
 
--- Add a new root node to the graph.
+blockToNode :: [String] -> TodoGraph
+blockToNode = leafNode . init . unlines . reverse
+
+-- Consume a line of input by adding it as a new root node to the graph.
 newRoot :: ParseState -> String -> ParseState
+
+newRoot _ "" = error "a root needs a label"
+
+-- TODO: maybe don't call this fn 'newRoot' and handle sub-items here?
+newRoot _ ('\t':_) = error "a root needs no leading tabs"
+
+-- Handle erroneous block-continuation as start of root node
+newRoot ParseState{currentBlock=[]} (' ':' ':_) =
+  error "block-continuation can't start a node"
+
+-- Handle start-of-block as root node
+newRoot state@ParseState{ currentBlock=[] } ('-':' ':label) =
+  state {currentBlock=[label]}
+
+-- Handle start-of-another-block as root node
+newRoot state@ParseState{ currentBlock=block } ('-':' ':label) =
+  state {roots=(blockToNode block):(roots state), currentBlock=[label]}
+
+-- Handle block-continuation as part of root node
+newRoot state@ParseState{ currentBlock=block } (' ':' ':label) =
+  state {currentBlock=(label:block)}
+
+-- Handle line as root node
 newRoot state label =
   let (tabs, newRootNode) = leafNode' label
   in  if tabs /= 0 then
@@ -60,9 +86,9 @@ addNode st@ParseState{roots=(r:rs)} label =
       -- TODO: handle `section >> section`
       then if "  " `isPrefixOf` newLabel
         then st {currentBlock=((drop 2 newLabel):currentBlock st)}
-        else finishParsingBlock
+        else finishParsingBlock'
       else if "- " `isPrefixOf` newLabel
-        then startParsingBlock
+        then startParsingBlock'
         else st {roots=(r':rs), curTabs=newDepth}
   where
     (newDepth, newNode) = leafNode' label
@@ -72,13 +98,13 @@ addNode st@ParseState{roots=(r:rs)} label =
     unlines' = init . unlines
 
     (_, sectionLeaf) = leafNode' $ unlines' $ reverse $ currentBlock st
-    finishParsingBlock = st {roots=(r'':rs), currentBlock=[]}
+    finishParsingBlock' = st {roots=(r'':rs), currentBlock=[]}
     r' = addNode' newNode newDepth r
     -- TODO: curTabs st, instead of newDepth, I think?
     r'' = addNode' newNode newDepth (addNode' sectionLeaf (curTabs st) r)
 
-    startParsingBlock :: ParseState
-    startParsingBlock = st {currentBlock=[drop 2 newLabel]}
+    startParsingBlock' :: ParseState
+    startParsingBlock' = st {currentBlock=[drop 2 newLabel]}
 
     addNode' :: TodoGraph -> Int -> TodoGraph -> TodoGraph
     addNode' noob 1 existingNode =
@@ -115,25 +141,29 @@ debugShow (c:cs) = [c] ++ debugShow cs
 
 syntaxError :: String -> Int -> Int -> a
 syntaxError line lineTabs ctxTabs =
-    error $
-        "bad syntax; line had depth " ++ (show lineTabs) ++
-        " in a context of depth " ++ (show ctxTabs) ++
-        "\n" ++ (debugShow line)
+  error $
+    "bad syntax; line had depth " ++ (show lineTabs) ++
+    " in a context of depth " ++ (show ctxTabs) ++
+    "\n" ++ (debugShow line)
 
 parseLine :: ParseState -> String -> ParseState
 parseLine st line =
-    let pastIndent = curTabs st
-        currIndent = leadingTabCount line
-        delta = currIndent - pastIndent
-    in  if delta > 1 then syntaxError line currIndent pastIndent
-        else addNode st line
+  let pastIndent = curTabs st
+      currIndent = leadingTabCount line
+      delta = currIndent - pastIndent
+  in  if delta > 1 then syntaxError line currIndent pastIndent
+      else addNode st line
 
 parseText :: String -> Maybe TodoGraph
 parseText input =
-    getGraph $ foldl parseLine newParseState $ filter (not . isNoise) $ lines input
-    where
-      isNoise :: String -> Bool
-      isNoise = all isSpace
+  let lastState = foldl parseLine newParseState $ filter (not . isNoise) $ lines input
+      finalState = if isParsingBlock lastState
+          then addNode (lastState {currentBlock=[]}) $ nodeLabel $ blockToNode $ currentBlock lastState
+          else lastState
+  in  getGraph finalState
+  where
+    isNoise :: String -> Bool
+    isNoise = all isSpace
 
 type NodeId = String
 type LabelString = String

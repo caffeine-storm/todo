@@ -1,5 +1,7 @@
 module Parse.BlockSpec(spec) where
 
+import Data.List (intercalate)
+
 import Test.Hspec
 import Txt2Dot (parseText, TodoGraph(TodoNode), leafNode)
 
@@ -12,6 +14,14 @@ blockExample = unlines [
   "\tlvl2 too"
   ]
 
+blockAlone :: String
+blockAlone = unlines [
+  "- start block",
+  "  continue block"
+  ]
+blockAloneLabel :: String
+blockAloneLabel = intercalate "\n" [drop 2 line | line <- lines blockAlone]
+
 spec :: Spec
 spec = do 
   describe "parsing blocks" $ do
@@ -21,3 +31,5 @@ spec = do
         leafNode "start block; lvl2\ncontinue block; lvl2",
         leafNode "lvl2 too"
         ])
+    it "can handle a single block as the whole input" $ do
+      (parseText blockAlone) `shouldBe` (Just $ leafNode blockAloneLabel)
