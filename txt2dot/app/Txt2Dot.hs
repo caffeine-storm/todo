@@ -1,6 +1,6 @@
 module Txt2Dot where
 
-import Data.List (intercalate)
+import Data.List (intercalate, isPrefixOf)
 import Data.Char (isSpace)
 
 leadingTabCount :: String -> Int
@@ -9,6 +9,9 @@ leadingTabCount =
 
 data TodoGraph = TodoNode String [TodoGraph]
     deriving(Eq, Show, Read)
+
+nodeLabel :: TodoGraph -> String
+nodeLabel (TodoNode lbl _) = lbl
 
 leafNode :: String -> TodoGraph
 leafNode lbl = TodoNode lbl []
@@ -22,38 +25,68 @@ addChild :: TodoGraph -> TodoGraph -> TodoGraph
 addChild (TodoNode lbl kids) newKid =
     TodoNode lbl (newKid:kids)
 
-data ParseState = ParseState{roots :: [TodoGraph], curTabs :: Int}
+data ParseState = ParseState{
+  roots :: [TodoGraph],
+  curTabs :: Int,
+  currentBlock :: [String]
+  }
     deriving(Show)
+
 newParseState :: ParseState
-newParseState = ParseState{roots = [], curTabs = -1}
+newParseState = ParseState{roots = [], curTabs = -1, currentBlock = []}
+
+isParsingBlock :: ParseState -> Bool
+isParsingBlock ParseState{currentBlock=[]} = False
+isParsingBlock _ = True
 
 -- Add a new root node to the graph.
 newRoot :: ParseState -> String -> ParseState
 newRoot state label =
-    let (tabs, newRootNode) = leafNode' label
-    in  if tabs /= 0 then
-            error "a root needs no leading tabs!"
-        else
-            state {roots = newRootNode:(roots state), curTabs=0}
+  let (tabs, newRootNode) = leafNode' label
+  in  if tabs /= 0 then
+        error "a root needs no leading tabs!"
+      else
+        state {roots = newRootNode:(roots state), curTabs=0}
 
 addNode :: ParseState -> String -> ParseState
 addNode st@ParseState{roots=[]} label =
-    newRoot st label
+  newRoot st label
 addNode st@ParseState{roots=(r:rs)} label =
-    let r' = addNode' newDepth r
-    in  if newDepth == 0 then
-          newRoot st label
-        else
-          st {roots=(r':rs), curTabs=newDepth}
-    where
-        (newDepth, newNode) = leafNode' label
-        addNode' :: Int -> TodoGraph -> TodoGraph
-        addNode' depth existingNode@(TodoNode lbl kids) =
-          if depth == 1 then
-            addChild existingNode newNode
-          else let target = head $ kids
-                   replacement = addNode' (pred depth) target
-               in  TodoNode lbl (replacement:(tail kids))
+  -- TODO: handle the case where a root node also starts a 'block'/'section'
+  -- TODO: handle the case where the last node is a section node
+  if newDepth == 0
+    then newRoot st label
+    else if isParsingBlock st
+      -- TODO: handle `section >> section`
+      then if "  " `isPrefixOf` newLabel
+        then st {currentBlock=((drop 2 newLabel):currentBlock st)}
+        else finishParsingBlock
+      else if "- " `isPrefixOf` newLabel
+        then startParsingBlock
+        else st {roots=(r':rs), curTabs=newDepth}
+  where
+    (newDepth, newNode) = leafNode' label
+    newLabel = nodeLabel newNode
+    -- drop a trailing newline from typical 'unlines'
+    unlines' :: [String] -> String
+    unlines' = init . unlines
+
+    (_, sectionLeaf) = leafNode' $ unlines' $ reverse $ currentBlock st
+    finishParsingBlock = st {roots=(r'':rs), currentBlock=[]}
+    r' = addNode' newNode newDepth r
+    -- TODO: curTabs st, instead of newDepth, I think?
+    r'' = addNode' newNode newDepth (addNode' sectionLeaf (curTabs st) r)
+
+    startParsingBlock :: ParseState
+    startParsingBlock = st {currentBlock=[drop 2 newLabel]}
+
+    addNode' :: TodoGraph -> Int -> TodoGraph -> TodoGraph
+    addNode' noob 1 existingNode =
+      addChild existingNode noob
+    addNode' noob depth (TodoNode lbl kids) =
+      let target = head $ kids
+          replacement = addNode' noob (pred depth) target
+      in  TodoNode lbl (replacement:(tail kids))
 
 lastNode' :: TodoGraph -> TodoGraph
 lastNode' it@(TodoNode _ []) = it
