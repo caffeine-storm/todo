@@ -79,7 +79,7 @@ spec = do
       id3 `shouldBe` "1_1"
       id4 `shouldBe` "1_2"
       id5 `shouldBe` "1_3"
-  
+
   describe "writing" $ do
     it "can write an empty graph" $ do
       (writeDot (TodoNode "" [])) `shouldContain` "digraph"
@@ -101,5 +101,3 @@ spec = do
     it "puts node declarations in order with the input graph" $ do
       let tut = writeDot (TodoNode "" [n1, n2, n3])
       tut `shouldContainSubsequences` [labelFor n1, labelFor n2, labelFor n3]
-      
-      
