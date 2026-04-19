@@ -43,28 +43,36 @@ blockToNode :: [String] -> TodoGraph
 blockToNode = leafNode . init . unlines . reverse
 
 -- Consume a line of input by adding it as a new root node to the graph.
+-- TODO: maybe don't call this fn 'newRoot' and handle sub-items here?
 newRoot :: ParseState -> String -> ParseState
 
 newRoot _ "" = error "a root needs a label"
 
--- TODO: maybe don't call this fn 'newRoot' and handle sub-items here?
-newRoot _ ('\t':_) = error "a root needs no leading tabs"
+newRoot st@ParseState{} label@('\t':_) =
+  -- finish the 'currentBlock' and add a sub-node for label
+  if isParsingBlock st
+    then
+      let oldRoots = roots st
+          blockNode = blockToNode (currentBlock st)
+      in  addNode (st {roots=(blockNode:oldRoots), curTabs=0, currentBlock=[]}) label
+    else
+      error "a root needs no leading tabs"
 
 -- Handle erroneous block-continuation as start of root node
 newRoot ParseState{currentBlock=[]} (' ':' ':_) =
   error "block-continuation can't start a node"
 
 -- Handle start-of-block as root node
-newRoot state@ParseState{ currentBlock=[] } ('-':' ':label) =
-  state {currentBlock=[label]}
+newRoot state@ParseState{currentBlock=[]} ('-':' ':label) =
+  state {currentBlock=[label], curTabs=0}
 
 -- Handle start-of-another-block as root node
-newRoot state@ParseState{ currentBlock=block } ('-':' ':label) =
-  state {roots=(blockToNode block):(roots state), currentBlock=[label]}
+newRoot state@ParseState{currentBlock=block} ('-':' ':label) =
+  state {roots=(blockToNode block):(roots state), currentBlock=[label], curTabs=0}
 
 -- Handle block-continuation as part of root node
-newRoot state@ParseState{ currentBlock=block } (' ':' ':label) =
-  state {currentBlock=(label:block)}
+newRoot state@ParseState{currentBlock=block} (' ':' ':label) =
+  state {currentBlock=(label:block), curTabs=0}
 
 -- Handle line as root node
 newRoot state label =
@@ -72,18 +80,18 @@ newRoot state label =
   in  if tabs /= 0 then
         error "a root needs no leading tabs!"
       else
-        state {roots = newRootNode:(roots state), curTabs=0}
+        if isParsingBlock state
+          then let blockNode = blockToNode (currentBlock state)
+               in  state {roots = newRootNode:blockNode:(roots state), curTabs=0, currentBlock=[]}
+          else state {roots = newRootNode:(roots state), curTabs=0}
 
 addNode :: ParseState -> String -> ParseState
 addNode st@ParseState{roots=[]} label =
   newRoot st label
 addNode st@ParseState{roots=(r:rs)} label =
-  -- TODO: handle the case where a root node also starts a 'block'/'section'
-  -- TODO: handle the case where the last node is a section node
   if newDepth == 0
     then newRoot st label
     else if isParsingBlock st
-      -- TODO: handle `section >> section`
       then if "  " `isPrefixOf` newLabel
         then st {currentBlock=((drop 2 newLabel):currentBlock st)}
         else finishParsingBlock'
@@ -113,14 +121,6 @@ addNode st@ParseState{roots=(r:rs)} label =
       let target = head $ kids
           replacement = addNode' noob (pred depth) target
       in  TodoNode lbl (replacement:(tail kids))
-
-lastNode' :: TodoGraph -> TodoGraph
-lastNode' it@(TodoNode _ []) = it
-lastNode' (TodoNode _ (k:_)) = lastNode' k
-
-lastNode :: ParseState -> TodoGraph
-lastNode ParseState{roots=[]} = error "no node added yet T_T"
-lastNode ParseState{roots=(x:_)} = lastNode' x
 
 reverseAll :: [TodoGraph] -> [TodoGraph]
 reverseAll lst =
