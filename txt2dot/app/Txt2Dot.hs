@@ -2,10 +2,7 @@ module Txt2Dot where
 
 import Data.List (intercalate, isPrefixOf)
 import Data.Char (isSpace)
-
-leadingTabCount :: String -> Int
-leadingTabCount =
-    length . takeWhile (== '\t')
+import ParseLine (leadingTabCount)
 
 data TodoGraph = TodoNode String [TodoGraph]
     deriving(Eq, Show, Read)
@@ -146,8 +143,8 @@ syntaxError line lineTabs ctxTabs =
     " in a context of depth " ++ (show ctxTabs) ++
     "\n" ++ (debugShow line)
 
-parseLine :: ParseState -> String -> ParseState
-parseLine st line =
+parseStep :: ParseState -> String -> ParseState
+parseStep st line =
   let pastIndent = curTabs st
       currIndent = leadingTabCount line
       delta = currIndent - pastIndent
@@ -156,7 +153,7 @@ parseLine st line =
 
 parseText :: String -> Maybe TodoGraph
 parseText input =
-  let lastState = foldl parseLine newParseState $ filter (not . isNoise) $ lines input
+  let lastState = foldl parseStep newParseState $ filter (not . isNoise) $ lines input
       finalState = if isParsingBlock lastState
           then addNode (lastState {currentBlock=[]}) $ nodeLabel $ blockToNode $ currentBlock lastState
           else lastState
