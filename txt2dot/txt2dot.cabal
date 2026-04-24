@@ -85,9 +85,9 @@ test-suite test-txt2dot
     other-modules:
         Parse.BasicSpec,
         Parse.BlockSpec,
-        Parse.LineSpec,
         RegressionSpec,
         ParseLine,
+        ParseLineSpec,
         Txt2Dot,
         WriteSpec,
     build-tool-depends:

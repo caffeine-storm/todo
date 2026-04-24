@@ -1,4 +1,4 @@
-module Parse.LineSpec (spec) where
+module ParseLineSpec (spec) where
 
 import Test.Hspec
 import ParseLine (parseLine, TodoLine(..))
@@ -17,5 +17,5 @@ spec = do
       (parseLine "\t\tsub-sub node") `shouldBe` (Line 2 "sub-sub node")
     it "should recognize a section-start" $ do
       (parseLine "\t- section starter") `shouldBe` (SectionStart 1 "section starter")
-    -- it "should recognize a section-continuation" $ do
-    -- (parseLine "\t\t  section continued") `shouldBe` (SectionContinue 2 "section continued")
+    it "should recognize a section-continuation" $ do
+      (parseLine "\t\t  section continued") `shouldBe` (SectionContinue 2 "section continued")
