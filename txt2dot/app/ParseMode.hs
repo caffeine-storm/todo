@@ -38,8 +38,8 @@ failCase methodName st  = error $ "can't " ++ methodName ++ " on parse state " +
 
 modeGetGraph :: ParseModeState -> Maybe TodoGraph
 modeGetGraph InitialMode = Nothing
-modeGetGraph _ = error "unimplemented"
 
 parseModeStep :: ParseModeState -> TodoLine -> ParseModeState
 parseModeStep InitialMode (Line 0 label) = LineMode [] $ leafNode label
-parseModeStep _ _ = error "unimplemented"
+parseModeStep InitialMode (Line _ _) = Failure "root nodes must start with leading tabs"
+parseModeStep it@(Failure _) _ = it
