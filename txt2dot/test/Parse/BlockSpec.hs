@@ -3,7 +3,8 @@ module Parse.BlockSpec(spec) where
 import Data.List (intercalate)
 
 import Test.Hspec
-import Txt2Dot (parseText, TodoGraph(TodoNode), leafNode)
+import Txt2Dot (parseText)
+import TodoGraph
 
 blockExample :: String
 blockExample = unlines [

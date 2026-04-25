@@ -2,25 +2,9 @@ module Txt2Dot where
 
 import Data.List (intercalate, isPrefixOf)
 import Data.Char (isSpace)
+
 import ParseLine (leadingTabCount)
-
-data TodoGraph = TodoNode String [TodoGraph]
-    deriving(Eq, Show, Read)
-
-nodeLabel :: TodoGraph -> String
-nodeLabel (TodoNode lbl _) = lbl
-
-leafNode :: String -> TodoGraph
-leafNode lbl = TodoNode lbl []
-
-leafNode' :: String -> (Int, TodoGraph)
-leafNode' lbl =
-    let tabs = leadingTabCount lbl
-    in  (tabs, TodoNode (drop tabs lbl) [])
-
-addChild :: TodoGraph -> TodoGraph -> TodoGraph
-addChild (TodoNode lbl kids) newKid =
-    TodoNode lbl (newKid:kids)
+import TodoGraph
 
 data ParseState = ParseState{
   roots :: [TodoGraph],
@@ -143,8 +127,8 @@ syntaxError line lineTabs ctxTabs =
     " in a context of depth " ++ (show ctxTabs) ++
     "\n" ++ (debugShow line)
 
-parseStep :: ParseState -> String -> ParseState
-parseStep st line =
+parseLine :: ParseState -> String -> ParseState
+parseLine st line =
   let pastIndent = curTabs st
       currIndent = leadingTabCount line
       delta = currIndent - pastIndent
@@ -153,7 +137,7 @@ parseStep st line =
 
 parseText :: String -> Maybe TodoGraph
 parseText input =
-  let lastState = foldl parseStep newParseState $ filter (not . isNoise) $ lines input
+  let lastState = foldl parseLine newParseState $ filter (not . isNoise) $ lines input
       finalState = if isParsingBlock lastState
           then addNode (lastState {currentBlock=[]}) $ nodeLabel $ blockToNode $ currentBlock lastState
           else lastState

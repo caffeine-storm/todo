@@ -1,7 +1,8 @@
 module Parse.BasicSpec (spec) where
 
 import Test.Hspec
-import Txt2Dot (parseText, TodoGraph(TodoNode), leafNode)
+import Txt2Dot (parseText)
+import TodoGraph
 
 -- ("1" [])
 leaf1 :: TodoGraph

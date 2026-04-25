@@ -3,16 +3,16 @@ module ParseLine where
 import Data.Char (isSpace)
 import Data.List (isPrefixOf)
 
+leadingTabCount :: String -> Int
+leadingTabCount =
+    length . takeWhile (== '\t')
+
 data TodoLine =
     Line Int String
   | SectionStart Int String
   | SectionContinue Int String
   | Skip
   deriving(Show, Read, Eq)
-
-leadingTabCount :: String -> Int
-leadingTabCount =
-    length . takeWhile (== '\t')
 
 parseLine :: String -> TodoLine
 parseLine "" = Skip

@@ -3,7 +3,8 @@ module WriteSpec (spec) where
 import Data.List (intercalate, isPrefixOf)
 import Test.Hspec
 
-import Txt2Dot (writeDot, TodoGraph(..), ShowStateNode(..), newShowState, quoted, mintNextId, addLevel)
+import Txt2Dot (writeDot, ShowStateNode(..), newShowState, quoted, mintNextId, addLevel)
+import TodoGraph
 
 -- ("b-node" [])
 bNode :: TodoGraph

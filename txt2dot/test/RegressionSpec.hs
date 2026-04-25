@@ -20,12 +20,15 @@ regr2 = "- foo\nbar\n\tbaz"
 regr3 :: String
 regr3 = "- foo\n\tbaz"
 
+regr4 :: String
+regr4 = "- foo\n\t- bar\n\t\tbaz"
+
 naturals :: [Int]
 naturals = [1..]
 
 spec :: Spec
 spec =
-  it "must not regress" $ do
+  it "must not happen anymore" $ do
     -- context "checking valid inputs" $ do
     forM_ (zip naturals validCases) $ \(n, tcase) ->
       --it ("should parse case " ++ (show n)) $ do
