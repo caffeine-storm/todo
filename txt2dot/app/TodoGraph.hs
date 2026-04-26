@@ -19,3 +19,6 @@ leafNode' lbl =
 addChild :: TodoGraph -> TodoGraph -> TodoGraph
 addChild (TodoNode lbl kids) newKid =
     TodoNode lbl (newKid:kids)
+
+graphForRootList :: [TodoGraph] -> TodoGraph
+graphForRootList roots = TodoNode "" roots
