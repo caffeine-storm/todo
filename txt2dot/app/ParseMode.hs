@@ -5,6 +5,7 @@ import ParseLine
 
 data ParseModeState =
   InitialMode |
+  InitialBlockMode [String] |
   LineMode [TodoGraph] TodoGraph |
   BlockMode [TodoGraph] [String] TodoGraph |
   Failure String
@@ -55,9 +56,15 @@ addNode (TodoNode lbl (kid:kids)) n newChild =
   newHead = addNode kid (pred n) newChild
 
 parseModeStep :: ParseModeState -> TodoLine -> ParseModeState
+parseModeStep it@(Failure _) _ = it
+
 parseModeStep InitialMode (Line 0 label) = LineMode [] $ leafNode label
 parseModeStep InitialMode (Line _ _) = Failure "root nodes must start with leading tabs"
-parseModeStep it@(Failure _) _ = it
+parseModeStep InitialMode (SectionStart 0 label) =
+  InitialBlockMode [label]
+parseModeStep InitialMode (SectionContinue 0 label) =
+  parseModeStep InitialMode (Line 0 ("  " ++ label))
+
 parseModeStep (LineMode roots curr) (Line 0 label) =
   LineMode (curr:roots) $ leafNode label
 parseModeStep (LineMode roots curr) (Line n label) =

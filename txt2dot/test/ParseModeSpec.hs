@@ -15,6 +15,11 @@ isLineMode :: ParseModeState -> Bool
 isLineMode (LineMode _ _) = True
 isLineMode _ = False
 
+isBlockMode :: ParseModeState -> Bool
+isBlockMode (BlockMode _ _ _) = True
+isBlockMode (InitialBlockMode _ ) = True
+isBlockMode _ = False
+
 spec :: Spec
 spec = do
   let st0 = newParseModeState
@@ -29,8 +34,12 @@ spec = do
       modeRoots st0 `shouldBe` []
       modeGetGraph st0 `shouldBe` Nothing
 
-    it "can take a step" $ do
+    it "can handle a root-node line" $ do
       parseModeStep st0 (Line 0 $ nodeLabel someLeaf) `shouldSatisfy` isLineMode
+    it "can handle a root-node block" $ do
+      parseModeStep st0 (SectionStart 0 "foo") `shouldSatisfy` isBlockMode
+    it "will treat an orphaned block-continuation at the root as a line" $ do
+      parseModeStep st0 (SectionContinue 0 "bar") `shouldSatisfy` isLineMode
 
     it "rejects leading tabs" $ do
       parseModeStep st0 (Line 3 $ nodeLabel someLeaf) `shouldSatisfy` isFailure
