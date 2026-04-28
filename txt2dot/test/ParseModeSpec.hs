@@ -36,10 +36,12 @@ spec = do
 
     it "can handle a root-node line" $ do
       parseModeStep st0 (Line 0 $ nodeLabel someLeaf) `shouldSatisfy` isLineMode
-    it "can handle a root-node block" $ do
+    it "can handle a root-node block-start" $ do
       parseModeStep st0 (SectionStart 0 "foo") `shouldSatisfy` isBlockMode
     it "will treat an orphaned block-continuation at the root as a line" $ do
       parseModeStep st0 (SectionContinue 0 "bar") `shouldSatisfy` isLineMode
+    it "is unchanged by 'Skip'able input" $ do
+      parseModeStep st0 Skip `shouldBe` st0
 
     it "rejects leading tabs" $ do
       parseModeStep st0 (Line 3 $ nodeLabel someLeaf) `shouldSatisfy` isFailure

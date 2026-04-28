@@ -56,6 +56,7 @@ addNode (TodoNode lbl (kid:kids)) n newChild =
   newHead = addNode kid (pred n) newChild
 
 parseModeStep :: ParseModeState -> TodoLine -> ParseModeState
+parseModeStep x Skip = x
 parseModeStep it@(Failure _) _ = it
 
 parseModeStep InitialMode (Line 0 label) = LineMode [] $ leafNode label
