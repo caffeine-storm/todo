@@ -18,7 +18,7 @@ isLineMode _ = False
 
 isBlockMode :: ParseModeState -> Bool
 isBlockMode (BlockMode _ _ _) = True
-isBlockMode (RootBlockMode _ ) = True
+isBlockMode (RootBlockMode _ _) = True
 isBlockMode _ = False
 
 arbitraryTodoGraph :: QC.Gen TodoGraph
@@ -47,7 +47,8 @@ arbitraryRootList = QC.sized $ \n -> do
 arbitraryRootBlockMode :: QC.Gen ParseModeState
 arbitraryRootBlockMode = do
   contextLines <- QC.arbitrary
-  return $ RootBlockMode contextLines
+  roots <- QC.scale decimate arbitraryRootList
+  return $ RootBlockMode roots contextLines
 
 arbitraryLineMode :: QC.Gen ParseModeState
 arbitraryLineMode = QC.sized $ \n -> do
@@ -73,12 +74,17 @@ arbitraryFailure = do
   msg <- QC.arbitrary
   return $ Failure msg
 
+arbitraryRootLineMode :: QC.Gen ParseModeState
+arbitraryRootLineMode = do
+  roots <- QC.scale decimate arbitraryRootList
+  return $ RootLineMode roots
+
 newtype MyParseState = MyParseState{ unwrap :: ParseModeState }
   deriving (Show, Read, Eq)
 
 instance QC.Arbitrary MyParseState where
   arbitrary = QC.oneof $ (map (fmap MyParseState)) [
-    return RootLineMode
+    arbitraryRootLineMode
     , arbitraryRootBlockMode
     , arbitraryLineMode
     , arbitraryBlockMode
@@ -87,8 +93,8 @@ instance QC.Arbitrary MyParseState where
   -- TODO: implement shrink?
 
 whichCtor :: MyParseState -> String
-whichCtor MyParseState{unwrap=RootLineMode} = "RootLineMode"
-whichCtor MyParseState{unwrap=(RootBlockMode _)} = "RootBlockMode"
+whichCtor MyParseState{unwrap=(RootLineMode _)} = "RootLineMode"
+whichCtor MyParseState{unwrap=(RootBlockMode _ _)} = "RootBlockMode"
 whichCtor MyParseState{unwrap=(LineMode _ _)} = "LineMode"
 whichCtor MyParseState{unwrap=(BlockMode _ _ _)} = "BlockMode"
 whichCtor MyParseState{unwrap=(Failure _ )} = "Failure"

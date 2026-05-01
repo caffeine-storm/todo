@@ -4,8 +4,8 @@ import TodoGraph
 import ParseLine
 
 data ParseModeState =
-  RootLineMode |
-  RootBlockMode [String] |
+  RootLineMode [TodoGraph] |
+  RootBlockMode [TodoGraph] [String] |
   LineMode [TodoGraph] TodoGraph |
   BlockMode [TodoGraph] [String] TodoGraph |
   -- TODO: not `Failure String` but `Failure ErrorMessage`
@@ -17,16 +17,16 @@ graphDepth (TodoNode _ []) = 1
 graphDepth (TodoNode _ (x:_)) = 1 + graphDepth x
 
 newParseModeState :: ParseModeState
-newParseModeState = RootLineMode
+newParseModeState = RootLineMode []
 
 modeRoots :: ParseModeState -> [TodoGraph]
-modeRoots RootLineMode = []
+modeRoots (RootLineMode roots) = roots
 modeRoots (LineMode rootList _) = rootList
 modeRoots (BlockMode rootList _ _) = rootList
 modeRoots st = failCase "modeRoots" st
 
 modeCurTabs :: ParseModeState -> Int
-modeCurTabs RootLineMode = 0
+modeCurTabs (RootLineMode _) = 0
 modeCurTabs (LineMode _ curNode) = graphDepth curNode
 modeCurTabs (BlockMode (r:_) _ _) = graphDepth r
 modeCurTabs st = failCase "modeCurTabs" st
@@ -39,7 +39,8 @@ failCase :: String -> ParseModeState -> a
 failCase methodName st  = error $ "can't " ++ methodName ++ " on parse state " ++ show st
 
 modeGetGraph :: ParseModeState -> Maybe TodoGraph
-modeGetGraph RootLineMode = Nothing
+modeGetGraph (RootLineMode []) = Nothing
+modeGetGraph (RootLineMode roots) = Just $ graphForRootList $ reverse roots
 modeGetGraph (Failure _) = Nothing
 modeGetGraph (LineMode [] curr) = Just $ curr
 modeGetGraph (LineMode roots curr) = Just $ graphForRootList $ reverse (curr:roots)
@@ -60,30 +61,34 @@ parseModeStep :: ParseModeState -> TodoLine -> ParseModeState
 parseModeStep x Skip = x
 parseModeStep it@(Failure _) _ = it
 
-parseModeStep RootLineMode (Line 0 label) = LineMode [] $ leafNode label
-parseModeStep RootLineMode (Line n _) = Failure $ badTabs 0 n
-parseModeStep RootLineMode (SectionStart 0 label) =
-  RootBlockMode [label]
-parseModeStep RootLineMode (SectionContinue 0 label) =
-  parseModeStep RootLineMode (Line 0 ("  " ++ label))
+parseModeStep (RootLineMode roots) (Line 0 label) = LineMode roots $ leafNode label
+parseModeStep (RootLineMode _) (Line n _) = Failure $ badTabs 0 n
+parseModeStep (RootLineMode roots) (SectionStart 0 label) =
+  RootBlockMode roots [label]
+parseModeStep (RootLineMode roots) (SectionContinue 0 label) =
+  parseModeStep (RootLineMode roots) $ Line 0 $ "  " ++ label
 
-parseModeStep (RootBlockMode prevLines) (Line 0 label) =
-  LineMode [blockToNode prevLines] $ leafNode label
-parseModeStep (RootBlockMode prevLines) (Line 1 label) =
+parseModeStep (RootBlockMode roots prevLines) (Line 0 label) =
+  LineMode (blockToNode prevLines:roots) $ leafNode label
+parseModeStep (RootBlockMode roots prevLines) (Line 1 label) =
   let base = blockToNode prevLines
       child = leafNode label
       currNode = addChild base child
-  in  LineMode [] currNode
-parseModeStep (RootBlockMode _) (Line n label) =
+  in  LineMode roots currNode
+parseModeStep (RootBlockMode _ _) (Line n label) =
   Failure $ badTabs 0 n
 
-parseModeStep (RootBlockMode prevLines) (SectionStart n label) =
+parseModeStep (RootBlockMode roots prevLines) (SectionStart 0 label) =
+  RootBlockMode roots (label:prevLines)
+
+parseModeStep (RootBlockMode roots prevLines) (SectionStart 1 label) =
+  -- 'prevLines' is a block-node that will own a new block-node that we might
+  -- not have seen the end of yet.
   let base = blockToNode prevLines
-      ctx = [label]
-  in case n of
-    0 -> BlockMode [base] ctx (leafNode "--this is bogus--")
-    1 -> BlockMode [] ctx base
-    _ -> Failure $ badTabs 0 n
+  in  BlockMode roots [label] base
+
+parseModeStep (RootBlockMode _ _) (SectionStart n label) =
+  Failure $ badTabs 0 n
 
 -- | SectionStart Int String
 -- | SectionContinue Int String
