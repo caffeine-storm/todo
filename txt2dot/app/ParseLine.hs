@@ -15,6 +15,7 @@ data TodoLine =
   deriving(Show, Read, Eq)
 
 parseLine :: String -> TodoLine
+-- TODO: don't need this pattern-match
 parseLine "" = Skip
 parseLine s =
   if all isSpace s

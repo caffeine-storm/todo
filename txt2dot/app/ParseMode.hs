@@ -8,6 +8,7 @@ data ParseModeState =
   InitialBlockMode [String] |
   LineMode [TodoGraph] TodoGraph |
   BlockMode [TodoGraph] [String] TodoGraph |
+  -- TODO: not `Failure String` but `Failure ErrorMessage`
   Failure String
   deriving(Show, Read, Eq)
 
@@ -60,11 +61,34 @@ parseModeStep x Skip = x
 parseModeStep it@(Failure _) _ = it
 
 parseModeStep InitialMode (Line 0 label) = LineMode [] $ leafNode label
-parseModeStep InitialMode (Line _ _) = Failure "root nodes must start with leading tabs"
+parseModeStep InitialMode (Line n _) = Failure $ badTabs 0 n
 parseModeStep InitialMode (SectionStart 0 label) =
   InitialBlockMode [label]
 parseModeStep InitialMode (SectionContinue 0 label) =
   parseModeStep InitialMode (Line 0 ("  " ++ label))
+
+parseModeStep (InitialBlockMode prevLines) (Line 0 label) =
+  LineMode [blockToNode prevLines] $ leafNode label
+parseModeStep (InitialBlockMode prevLines) (Line 1 label) =
+  let base = blockToNode prevLines
+      child = leafNode label
+      currNode = addChild base child
+  in  LineMode [] currNode
+parseModeStep (InitialBlockMode _) (Line n label) =
+  Failure $ badTabs 0 n
+
+parseModeStep (InitialBlockMode prevLines) (SectionStart n label) =
+  let base = blockToNode prevLines
+      ctx = [label]
+  in case n of
+    0 -> BlockMode [base] ctx (leafNode "--this is bogus--")
+    1 -> BlockMode [] ctx base
+    _ -> Failure $ badTabs 0 n
+
+-- | SectionStart Int String
+-- | SectionContinue Int String
+-- | Skip
+
 
 parseModeStep (LineMode roots curr) (Line 0 label) =
   LineMode (curr:roots) $ leafNode label
@@ -72,3 +96,11 @@ parseModeStep (LineMode roots curr) (Line n label) =
   case addNode curr n $ leafNode label of
     Left result -> LineMode roots result
     Right msg -> Failure msg
+
+-- Error messages
+
+-- type ErrorMessage = String
+badTabs :: Int -> Int -> String
+badTabs expected found =
+  "can't accept a line with " ++ (show found) ++
+  " tabs at level " ++ (show expected)

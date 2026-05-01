@@ -22,3 +22,6 @@ addChild (TodoNode lbl kids) newKid =
 
 graphForRootList :: [TodoGraph] -> TodoGraph
 graphForRootList roots = TodoNode "" roots
+
+blockToNode :: [String] -> TodoGraph
+blockToNode = leafNode . init . unlines . reverse

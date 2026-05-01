@@ -20,9 +20,6 @@ isParsingBlock :: ParseState -> Bool
 isParsingBlock ParseState{currentBlock=[]} = False
 isParsingBlock _ = True
 
-blockToNode :: [String] -> TodoGraph
-blockToNode = leafNode . init . unlines . reverse
-
 -- Consume a line of input by adding it as a new root node to the graph.
 -- TODO: maybe don't call this fn 'newRoot' and handle sub-items here?
 newRoot :: ParseState -> String -> ParseState
