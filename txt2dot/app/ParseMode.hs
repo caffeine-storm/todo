@@ -21,17 +21,21 @@ newParseModeState = RootLineMode []
 
 modeRoots :: ParseModeState -> [TodoGraph]
 modeRoots (RootLineMode roots) = roots
-modeRoots (LineMode rootList _) = rootList
-modeRoots (BlockMode rootList _ _) = rootList
-modeRoots st = failCase "modeRoots" st
+modeRoots (RootBlockMode roots _) = roots
+modeRoots (LineMode roots _) = roots
+modeRoots (BlockMode roots _ _) = roots
+modeRoots st@(Failure _) = failCase "modeRoots" st
 
 modeCurTabs :: ParseModeState -> Int
 modeCurTabs (RootLineMode _) = 0
+modeCurTabs (RootBlockMode _ _) = 0
 modeCurTabs (LineMode _ curNode) = graphDepth curNode
+modeCurTabs (BlockMode [] _ curNode) = graphDepth curNode
 modeCurTabs (BlockMode (r:_) _ _) = graphDepth r
-modeCurTabs st = failCase "modeCurTabs" st
+modeCurTabs st@(Failure _) = failCase "modeCurTabs" st
 
 modeCurrentBlock :: ParseModeState -> [String]
+modeCurrentBlock (RootBlockMode _ curBlock) = curBlock
 modeCurrentBlock (BlockMode _ curBlock _) = curBlock
 modeCurrentBlock st = failCase "modeCurrentBlock" st
 
@@ -41,9 +45,11 @@ failCase methodName st  = error $ "can't " ++ methodName ++ " on parse state " +
 modeGetGraph :: ParseModeState -> Maybe TodoGraph
 modeGetGraph (RootLineMode []) = Nothing
 modeGetGraph (RootLineMode roots) = Just $ graphForRootList $ reverse roots
-modeGetGraph (Failure _) = Nothing
+modeGetGraph (RootBlockMode roots prevLines) = modeGetGraph $ LineMode roots $ blockToNode prevLines
 modeGetGraph (LineMode [] curr) = Just $ curr
 modeGetGraph (LineMode roots curr) = Just $ graphForRootList $ reverse (curr:roots)
+modeGetGraph (BlockMode roots prevLines curr) = modeGetGraph $ LineMode roots $ addChild curr $ blockToNode prevLines
+modeGetGraph (Failure _) = Nothing
 
 addNode :: TodoGraph -> Int -> TodoGraph -> Either TodoGraph String
 addNode (TodoNode lbl kids) 0 newChild = Left $ TodoNode lbl (newChild:kids)
