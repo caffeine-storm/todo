@@ -6,7 +6,7 @@ import Test.Hspec
 import Txt2Dot
 
 validCases :: [String]
-validCases = [regr1, regr2, regr3]
+validCases = [regr1, regr2, regr3, regr4]
 
 invalidCases :: [String]
 invalidCases = []
@@ -21,17 +21,15 @@ regr3 :: String
 regr3 = "- foo\n\tbaz"
 
 regr4 :: String
-regr4 = "- foo\n\t- bar\n\t\tbaz"
-
-naturals :: [Int]
-naturals = [1..]
+--regr4 = "- foo\n\t- bar\n\t\tbaz"
+regr4 = "- foo\n\t- bar\n\tbaz"
 
 spec :: Spec
 spec =
-  it "must not happen anymore" $ do
-    -- context "checking valid inputs" $ do
-    forM_ (zip naturals validCases) $ \(n, tcase) ->
-      --it ("should parse case " ++ (show n)) $ do
-      (parseText tcase) `shouldNotBe` Nothing
-    forM_ (zip naturals invalidCases) $ \(_, tcase) ->
-      (parseText tcase) `shouldBe` Nothing
+  describe "must not happen anymore" $ do
+    it "should accept valid inputs (that used to be rejected)" $ do
+      forM_ validCases $ \tcase ->
+        (parseText tcase) `shouldNotBe` Nothing
+    it "should reject invalid inputs (that is used to accept)" $ do
+      forM_ invalidCases $ \tcase ->
+        (parseText tcase) `shouldBe` Nothing
