@@ -96,10 +96,31 @@ parseModeStep (RootBlockMode roots prevLines) (SectionStart 1 label) =
 parseModeStep (RootBlockMode _ _) (SectionStart n label) =
   Failure $ badTabs 0 n
 
--- | SectionStart Int String
--- | SectionContinue Int String
--- | Skip
+parseModeStep (RootBlockMode roots []) (SectionContinue 0 label) =
+  -- it's not a continuation; it must be interpreted as a Line that happens to
+  -- have two leading spaces
+  parseModeStep (RootBlockMode roots []) $ Line 0 $ "  " ++ label
+parseModeStep (RootBlockMode roots prevLines) (SectionContinue 0 label) =
+  -- it is a continuation; just collect more to 'prevLines'
+  RootBlockMode roots $ label:prevLines
+parseModeStep (RootBlockMode roots prevLines) (SectionContinue 1 label) =
+  -- it's not a continuation; it's a Line that has two leading spaces _AND_ is
+  -- one tab in from the root level
+  if length prevLines == 0
+    then if null roots
+      then Failure $ badTabs 0 1
+      -- TODO: ... would we ever get here? we have roots but no context lines...
+      else patchHeadRoot
+    else LineMode roots $ addChild (blockToNode prevLines) $ leafNode $ "  " ++ label
+  where
+    patchHeadRoot :: ParseModeState
+    patchHeadRoot = case patchety of
+      Left good -> LineMode (tail roots) good
+      Right msg -> Failure msg
+    patchety = addNode (head roots) 1 $ leafNode $ "  " ++ label
 
+parseModeStep (RootBlockMode _ _) (SectionContinue n _) =
+  Failure $ badTabs 0 n
 
 parseModeStep (LineMode roots curr) (Line 0 label) =
   LineMode (curr:roots) $ leafNode label
