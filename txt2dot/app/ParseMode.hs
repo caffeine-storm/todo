@@ -57,17 +57,16 @@ modeGetGraph (LineMode roots curr) = Just $ graphForRootList $ reverse (curr:roo
 modeGetGraph (BlockMode roots (BlockParseState prevLines n) curr) = modeGetGraph $ LineMode roots $ appendChild curr $ blockToNode prevLines
 modeGetGraph (Failure _) = Nothing
 
--- TODO: using `Either GoodCase BadCase`; is backwards!
-addNode :: TodoGraph -> Int -> TodoGraph -> Either TodoGraph String
-addNode (TodoNode lbl kids) 0 newChild = Left $ TodoNode lbl (newChild:kids)
-addNode (TodoNode lbl []) 1 newChild = Left $ TodoNode lbl [newChild]
-addNode (TodoNode _ []) _ _ = Right "can't recurse down a node with no children"
+addNode :: TodoGraph -> Int -> TodoGraph -> Either String TodoGraph
+addNode (TodoNode lbl kids) 0 newChild = Right $ TodoNode lbl (newChild:kids)
+addNode (TodoNode lbl []) 1 newChild = Right $ TodoNode lbl [newChild]
+addNode (TodoNode _ []) _ _ = Left "can't recurse down a node with no children"
 addNode (TodoNode lbl (kid:kids)) n newChild =
   case newHead of
-    Right msg -> Right msg
-    Left nd -> Left $ TodoNode lbl (nd:kids)
+    Left msg -> Left msg
+    Right nd -> Right $ TodoNode lbl (nd:kids)
   where
-  newHead :: Either TodoGraph String
+  newHead :: Either String TodoGraph
   newHead = addNode kid (pred n) newChild
 
 parseModeStep :: ParseModeState -> TodoLine -> ParseModeState
@@ -123,8 +122,8 @@ parseModeStep (RootBlockMode roots (RootBlockParseState prevLines)) (SectionCont
   where
     patchHeadRoot :: ParseModeState
     patchHeadRoot = case patchety of
-      Left good -> LineMode (tail roots) good
-      Right msg -> Failure msg
+      Right good -> LineMode (tail roots) good
+      Left msg -> Failure msg
     patchety = addNode (head roots) 1 $ leafNode $ "  " ++ label
 
 parseModeStep (RootBlockMode _ _) (SectionContinue n _) =
@@ -134,8 +133,8 @@ parseModeStep (LineMode roots curr) (Line 0 label) =
   LineMode (curr:roots) $ leafNode label
 parseModeStep (LineMode roots curr) (Line n label) =
   case addNode curr n $ leafNode label of
-    Left result -> LineMode roots result
-    Right msg -> Failure msg
+    Right result -> LineMode roots result
+    Left msg -> Failure msg
 
 -- parseModeStep (LineMode roots curr) (SectionStart _ _) = TODO
 -- parseModeStep (LineMode roots curr) (SectionContinue _ _) = TODO
@@ -145,8 +144,8 @@ parseModeStep st@(BlockMode roots (BlockParseState prevLines blockTabs) curr) (L
       prevBlock = blockToNode prevLines
       curr' = addNode curr blockTabs prevBlock
       lineModeResult = case curr' of
-        Left good -> LineMode roots good
-        Right msg -> Failure msg
+        Right good -> LineMode roots good
+        Left msg -> Failure msg
       newRootResult = parseModeStep (RootLineMode (prevBlock:roots)) (Line n label)
   in if tabDelta > 1
         then Failure $ badTabs blockTabs n
@@ -162,8 +161,8 @@ parseModeStep st@(BlockMode roots (BlockParseState prevLines blockTabs) curr) (S
     if n - curTabs > 1
       then Failure $ badTabs curTabs n
       else case curr' of
-        Left good -> LineMode roots good
-        Right msg -> Failure msg
+        Right good -> LineMode roots good
+        Left msg -> Failure msg
 
 -- parseModeStep st@(BlockMode roots prevLines curr) (SectionContinue n label) = TODO
 

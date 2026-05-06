@@ -114,7 +114,7 @@ spec = do
       blockModeState = BlockMode [someLeaf] (BlockParseState ["block states need context lines"] 0) someLeaf
   describe "addNode" $ do
     it "can add a new level" $ do
-      addNode (TodoNode "foo" []) 1 (leafNode "bar") `shouldBe` (Left (TodoNode "foo" [TodoNode "bar" []]))
+      addNode (TodoNode "foo" []) 1 (leafNode "bar") `shouldBe` (Right (TodoNode "foo" [TodoNode "bar" []]))
 
   describe "with a new state" $ do
     it "starts out empty" $ do
