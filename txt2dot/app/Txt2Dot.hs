@@ -94,7 +94,7 @@ addNode st@ParseState{roots=(r:rs)} label =
 
     addNode' :: TodoGraph -> Int -> TodoGraph -> TodoGraph
     addNode' noob 1 existingNode =
-      addChild existingNode noob
+      appendChild existingNode noob
     addNode' noob depth (TodoNode lbl kids) =
       let target = head $ kids
           replacement = addNode' noob (pred depth) target

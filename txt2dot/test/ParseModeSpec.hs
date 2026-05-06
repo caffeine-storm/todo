@@ -21,6 +21,9 @@ isBlockMode (BlockMode _ _ _) = True
 isBlockMode (RootBlockMode _ _) = True
 isBlockMode _ = False
 
+decimate :: Int -> Int
+decimate = round . sqrt . (fromIntegral :: Int -> Double) . pred
+
 arbitraryTodoGraph :: QC.Gen TodoGraph
 arbitraryTodoGraph = QC.sized $ \n -> do
   case n `compare` 0 of
@@ -35,9 +38,6 @@ arbitraryTodoGraph = QC.sized $ \n -> do
         childSizedGraph :: QC.Gen TodoGraph
         childSizedGraph = QC.scale decimate arbitraryTodoGraph
 
-decimate :: Int -> Int
-decimate = round . sqrt . (fromIntegral :: Int -> Double) . pred
-
 arbitraryRootList :: QC.Gen [TodoGraph]
 arbitraryRootList = QC.sized $ \n -> do
   if n == 0
@@ -48,7 +48,7 @@ arbitraryRootBlockMode :: QC.Gen ParseModeState
 arbitraryRootBlockMode = do
   contextLines <- QC.arbitrary
   roots <- QC.scale decimate arbitraryRootList
-  return $ RootBlockMode roots contextLines
+  return $ RootBlockMode roots (RootBlockParseState contextLines)
 
 arbitraryLineMode :: QC.Gen ParseModeState
 arbitraryLineMode = QC.sized $ \n -> do
@@ -62,12 +62,13 @@ arbitraryLineMode = QC.sized $ \n -> do
 arbitraryBlockMode :: QC.Gen ParseModeState
 arbitraryBlockMode = QC.sized $ \n -> do
   if n == 0
-    then return $ BlockMode [] [] $ leafNode ""
+    then return $ BlockMode [] (BlockParseState [] 0) $ leafNode ""
     else do
       roots <- QC.scale decimate arbitraryRootList
       blockLines <- QC.scale pred QC.arbitrary
       current <- QC.scale pred arbitraryTodoGraph
-      return $ BlockMode roots blockLines current
+      tabCount <- QC.arbitrary
+      return $ BlockMode roots (BlockParseState blockLines tabCount) current
 
 arbitraryFailure :: QC.Gen ParseModeState
 arbitraryFailure = do
@@ -107,8 +108,10 @@ spec :: Spec
 spec = do
   let st0 = newParseModeState
       someLeaf = leafNode "some label"
-      st1 = LineMode [] someLeaf
-      lineModeState = st1
+      rootLineModeState = RootLineMode [someLeaf]
+      lineModeState = LineMode [someLeaf] someLeaf
+      rootBlockModeState = RootBlockMode [someLeaf] (RootBlockParseState ["block states need context lines"])
+      blockModeState = BlockMode [someLeaf] (BlockParseState ["block states need context lines"] 0) someLeaf
   describe "addNode" $ do
     it "can add a new level" $ do
       addNode (TodoNode "foo" []) 1 (leafNode "bar") `shouldBe` (Left (TodoNode "foo" [TodoNode "bar" []]))
@@ -136,6 +139,15 @@ spec = do
           QC.within timeLimitUS $
             (parseModeStep . unwrap) someState Skip `shouldBe` ((unwrap someState) :: ParseModeState)
 
+  describe "in RootLineMode" $ do
+    it "can yield a graph" $ do
+      modeGetGraph rootLineModeState `shouldNotBe` Nothing
+    describe "it can read more" $ do
+      it "as a sibling line" $ do
+        parseModeStep rootLineModeState (Line 0 "sibling") `shouldSatisfy` isLineMode
+      it "rejects a subline" $ do
+        parseModeStep rootLineModeState (Line 1 "child") `shouldSatisfy` isFailure
+
   describe "in LineMode" $ do
     it "can yield a graph" $ do
       modeGetGraph lineModeState `shouldNotBe` Nothing
@@ -146,3 +158,25 @@ spec = do
         parseModeStep lineModeState (Line 1 "child") `shouldSatisfy` isLineMode
       it "rejects too deep of a line" $ do
         parseModeStep lineModeState (Line 2 "too deep") `shouldNotSatisfy` isLineMode
+
+  describe "inRootBlockMdoe" $ do
+    it "can yield a graph" $ do
+      modeGetGraph rootBlockModeState `shouldNotBe` Nothing
+    describe "it can read more" $ do
+      it "as a sibling line" $ do
+        parseModeStep rootBlockModeState (Line 0 "sibling") `shouldSatisfy` isLineMode
+      it "rejects a subline" $ do
+        parseModeStep rootBlockModeState (Line 1 "child") `shouldSatisfy` isLineMode
+      it "rejects too deep of a line" $ do
+        parseModeStep rootBlockModeState (Line 2 "too deep") `shouldNotSatisfy` isLineMode
+
+  describe "in BlockMode" $ do
+    it "can yield a graph" $ do
+      modeGetGraph blockModeState `shouldNotBe` Nothing
+    describe "it can read more" $ do
+      it "as a sibling line" $ do
+        parseModeStep blockModeState (Line 0 "sibling") `shouldSatisfy` isLineMode
+      it "as a subline" $ do
+        parseModeStep blockModeState (Line 1 "child") `shouldSatisfy` isLineMode
+      it "rejects too deep of a line" $ do
+        parseModeStep blockModeState (Line 2 "too deep") `shouldNotSatisfy` isLineMode
