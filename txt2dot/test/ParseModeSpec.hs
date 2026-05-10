@@ -21,8 +21,11 @@ isBlockMode (BlockMode _ _ _) = True
 isBlockMode (RootBlockMode _ _) = True
 isBlockMode _ = False
 
+nonNegative :: Int -> Int
+nonNegative = max 0
+
 decimate :: Int -> Int
-decimate = round . sqrt . (fromIntegral :: Int -> Double) . pred
+decimate = round . sqrt . (fromIntegral :: Int -> Double) . nonNegative . pred
 
 arbitraryTodoGraph :: QC.Gen TodoGraph
 arbitraryTodoGraph = QC.sized $ \n -> do
@@ -159,13 +162,13 @@ spec = do
       it "rejects too deep of a line" $ do
         parseModeStep lineModeState (Line 2 "too deep") `shouldNotSatisfy` isLineMode
 
-  describe "inRootBlockMdoe" $ do
+  describe "in RootBlockMdoe" $ do
     it "can yield a graph" $ do
       modeGetGraph rootBlockModeState `shouldNotBe` Nothing
     describe "it can read more" $ do
       it "as a sibling line" $ do
         parseModeStep rootBlockModeState (Line 0 "sibling") `shouldSatisfy` isLineMode
-      it "rejects a subline" $ do
+      it "as a subline" $ do
         parseModeStep rootBlockModeState (Line 1 "child") `shouldSatisfy` isLineMode
       it "rejects too deep of a line" $ do
         parseModeStep rootBlockModeState (Line 2 "too deep") `shouldNotSatisfy` isLineMode
