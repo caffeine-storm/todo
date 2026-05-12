@@ -54,7 +54,7 @@ modeGetGraph (RootLineMode roots) = Just $ graphForRootList $ reverse roots
 modeGetGraph (RootBlockMode roots (RootBlockParseState prevLines)) = modeGetGraph $ LineMode roots $ blockToNode prevLines
 modeGetGraph (LineMode [] curr) = Just $ curr
 modeGetGraph (LineMode roots curr) = Just $ graphForRootList $ reverse (curr:roots)
-modeGetGraph (BlockMode roots (BlockParseState prevLines n) curr) = modeGetGraph $ LineMode roots $ appendChild curr $ blockToNode prevLines
+modeGetGraph (BlockMode roots (BlockParseState prevLines n) curr) = modeGetGraph $ LineMode roots $ appendDescendant curr n $ blockToNode prevLines
 modeGetGraph (Failure _) = Nothing
 
 addNode :: TodoGraph -> Int -> TodoGraph -> Either String TodoGraph
@@ -88,7 +88,7 @@ parseModeStep (RootBlockMode roots (RootBlockParseState prevLines)) (Line 1 labe
       child = leafNode label
       currNode = appendChild base child
   in  LineMode roots currNode
-parseModeStep (RootBlockMode _ _) (Line n label) =
+parseModeStep (RootBlockMode _ _) (Line n _) =
   Failure $ badTabs 0 n
 
 parseModeStep (RootBlockMode roots (RootBlockParseState prevLines)) (SectionStart 0 label) =
@@ -100,7 +100,7 @@ parseModeStep (RootBlockMode roots (RootBlockParseState prevLines)) (SectionStar
   let base = blockToNode prevLines
   in  BlockMode roots (BlockParseState [label] 1) base
 
-parseModeStep (RootBlockMode _ _) (SectionStart n label) =
+parseModeStep (RootBlockMode _ _) (SectionStart n _) =
   Failure $ badTabs 0 n
 
 parseModeStep (RootBlockMode roots (RootBlockParseState [])) (SectionContinue 0 label) =
@@ -139,7 +139,7 @@ parseModeStep (LineMode roots curr) (Line n label) =
 -- parseModeStep (LineMode roots curr) (SectionStart _ _) = TODO
 -- parseModeStep (LineMode roots curr) (SectionContinue _ _) = TODO
 
-parseModeStep st@(BlockMode roots (BlockParseState prevLines blockTabs) curr) (Line n label) =
+parseModeStep (BlockMode roots (BlockParseState prevLines blockTabs) curr) (Line n label) =
   let tabDelta = n - blockTabs
       prevBlock = blockToNode prevLines
       curr' = addNode curr blockTabs prevBlock
