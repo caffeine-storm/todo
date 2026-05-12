@@ -183,3 +183,7 @@ spec = do
         parseModeStep blockModeState (Line 1 "child") `shouldSatisfy` isLineMode
       it "rejects too deep of a line" $ do
         parseModeStep blockModeState (Line 2 "too deep") `shouldNotSatisfy` isLineMode
+
+  describe "parseTextModal" $ do
+    it "can handle an empty input stream" $ do
+      parseTextModal "\n" `shouldSatisfy` null

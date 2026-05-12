@@ -2,6 +2,7 @@ module ParseMode where
 
 import TodoGraph
 import ParseLine
+import Data.Maybe (maybeToList)
 
 -- TODO: rename to 'BlockInProgress' or smth?
 data BlockParseState = BlockParseState [String] Int
@@ -174,3 +175,12 @@ badTabs :: Int -> Int -> String
 badTabs expected found =
   "can't accept a line with " ++ (show found) ++
   " tabs at level " ++ (show expected)
+
+-- entry point
+parseTextModal :: String -> [TodoGraph]
+parseTextModal inputText =
+  let inputLines = lines inputText
+      linewiseInput = map parseLine inputLines
+      startState = newParseModeState
+      lastState = foldl parseModeStep startState linewiseInput
+  in  maybeToList $ modeGetGraph lastState
