@@ -7,6 +7,7 @@ import qualified Test.Hspec.QuickCheck as HspecQC
 import ParseLine (TodoLine(..))
 import ParseMode
 import TodoGraph
+import Control.Monad(replicateM)
 
 isFailure :: ParseModeState -> Bool
 isFailure (Failure _) = True
@@ -17,7 +18,7 @@ isLineMode (LineMode _ _) = True
 isLineMode _ = False
 
 isBlockMode :: ParseModeState -> Bool
-isBlockMode (BlockMode _ _ _) = True
+isBlockMode (BlockMode {}) = True
 isBlockMode (RootBlockMode _ _) = True
 isBlockMode _ = False
 
@@ -35,7 +36,7 @@ arbitraryTodoGraph = QC.sized $ \n -> do
     GT -> do
       label <- QC.arbitrary
       numChildren <- QC.chooseInt (0, decimate n)
-      children <- sequence $ replicate numChildren childSizedGraph
+      children <- replicateM numChildren childSizedGraph
       return $ TodoNode label children
       where
         childSizedGraph :: QC.Gen TodoGraph
@@ -45,7 +46,7 @@ arbitraryRootList :: QC.Gen [TodoGraph]
 arbitraryRootList = QC.sized $ \n -> do
   if n == 0
     then return []
-    else sequence $ replicate (decimate n) $ QC.scale decimate arbitraryTodoGraph
+    else replicateM (decimate n) $ QC.scale decimate arbitraryTodoGraph
 
 arbitraryRootBlockMode :: QC.Gen ParseModeState
 arbitraryRootBlockMode = do
@@ -83,25 +84,29 @@ arbitraryRootLineMode = do
   roots <- QC.scale decimate arbitraryRootList
   return $ RootLineMode roots
 
-newtype MyParseState = MyParseState{ unwrap :: ParseModeState }
+newtype MyParseState = MyParseState {unwrap :: ParseModeState}
   deriving (Show, Read, Eq)
 
 instance QC.Arbitrary MyParseState where
-  arbitrary = QC.oneof $ (map (fmap MyParseState)) [
-    arbitraryRootLineMode
-    , arbitraryRootBlockMode
-    , arbitraryLineMode
-    , arbitraryBlockMode
-    , arbitraryFailure
-    ]
-  -- TODO: implement shrink?
+  arbitrary =
+    QC.oneof $
+      map
+        (fmap MyParseState)
+        [ arbitraryRootLineMode,
+          arbitraryRootBlockMode,
+          arbitraryLineMode,
+          arbitraryBlockMode,
+          arbitraryFailure
+        ]
+
+-- TODO: implement shrink?
 
 whichCtor :: MyParseState -> String
-whichCtor MyParseState{unwrap=(RootLineMode _)} = "RootLineMode"
-whichCtor MyParseState{unwrap=(RootBlockMode _ _)} = "RootBlockMode"
-whichCtor MyParseState{unwrap=(LineMode _ _)} = "LineMode"
-whichCtor MyParseState{unwrap=(BlockMode _ _ _)} = "BlockMode"
-whichCtor MyParseState{unwrap=(Failure _ )} = "Failure"
+whichCtor MyParseState {unwrap = (RootLineMode _)} = "RootLineMode"
+whichCtor MyParseState {unwrap = (RootBlockMode _ _)} = "RootBlockMode"
+whichCtor MyParseState {unwrap = (LineMode _ _)} = "LineMode"
+whichCtor MyParseState {unwrap = (BlockMode {})} = "BlockMode"
+whichCtor MyParseState {unwrap = (Failure _)} = "Failure"
 
 -- 10ms == 10,000us
 timeLimitUS :: Int
@@ -117,7 +122,7 @@ spec = do
       blockModeState = BlockMode [someLeaf] (BlockParseState ["block states need context lines"] 0) someLeaf
   describe "addNode" $ do
     it "can add a new level" $ do
-      addNode (TodoNode "foo" []) 1 (leafNode "bar") `shouldBe` (Right (TodoNode "foo" [TodoNode "bar" []]))
+      addNode (TodoNode "foo" []) 1 (leafNode "bar") `shouldBe` Right (TodoNode "foo" [TodoNode "bar" []])
 
   describe "with a new state" $ do
     it "starts out empty" $ do
@@ -140,7 +145,7 @@ spec = do
       \someState ->
         QC.collect (whichCtor someState) $
           QC.within timeLimitUS $
-            (parseModeStep . unwrap) someState Skip `shouldBe` ((unwrap someState) :: ParseModeState)
+            (parseModeStep . unwrap) someState Skip `shouldBe` (unwrap someState :: ParseModeState)
 
   describe "in RootLineMode" $ do
     it "can yield a graph" $ do
