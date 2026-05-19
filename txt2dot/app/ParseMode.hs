@@ -7,7 +7,7 @@ import Data.Maybe (maybeToList)
 -- TODO: rename to 'BlockInProgress' or smth?
 data BlockParseState = BlockParseState [String] Int
   deriving(Show, Read, Eq)
-data RootBlockParseState = RootBlockParseState [String]
+newtype RootBlockParseState = RootBlockParseState [String]
   deriving(Show, Read, Eq)
 
 data ParseModeState =
@@ -53,7 +53,7 @@ modeGetGraph :: ParseModeState -> Maybe TodoGraph
 modeGetGraph (RootLineMode []) = Nothing
 modeGetGraph (RootLineMode roots) = Just $ graphForRootList $ reverse roots
 modeGetGraph (RootBlockMode roots (RootBlockParseState prevLines)) = modeGetGraph $ LineMode roots $ blockToNode prevLines
-modeGetGraph (LineMode [] curr) = Just $ curr
+modeGetGraph (LineMode [] curr) = Just curr
 modeGetGraph (LineMode roots curr) = Just $ graphForRootList $ reverse (curr:roots)
 modeGetGraph (BlockMode roots (BlockParseState prevLines n) curr) = modeGetGraph $ LineMode roots $ appendDescendant curr n $ blockToNode prevLines
 modeGetGraph (Failure _) = Nothing
@@ -78,8 +78,10 @@ parseModeStep (RootLineMode roots) (Line 0 label) = LineMode roots $ leafNode la
 parseModeStep (RootLineMode _) (Line n _) = Failure $ badTabs 0 n
 parseModeStep (RootLineMode roots) (SectionStart 0 label) =
   RootBlockMode roots $ RootBlockParseState [label]
+parseModeStep (RootLineMode _) (SectionStart n _) = Failure $ badTabs 0 n
 parseModeStep (RootLineMode roots) (SectionContinue 0 label) =
   parseModeStep (RootLineMode roots) $ Line 0 $ "  " ++ label
+parseModeStep (RootLineMode _) (SectionContinue n _) = Failure $ badTabs 0 n
 
 parseModeStep (RootBlockMode roots (RootBlockParseState prevLines)) (Line 0 label) =
   LineMode (blockToNode prevLines:roots) $ leafNode label
@@ -114,7 +116,7 @@ parseModeStep (RootBlockMode roots (RootBlockParseState prevLines)) (SectionCont
 parseModeStep (RootBlockMode roots (RootBlockParseState prevLines)) (SectionContinue 1 label) =
   -- it's not a continuation; it's a Line that has two leading spaces _AND_ is
   -- one tab in from the root level
-  if length prevLines == 0
+  if null prevLines
     then if null roots
       then Failure $ badTabs 0 1
       -- TODO: ... would we ever get here? we have roots but no context lines...
@@ -154,9 +156,8 @@ parseModeStep (BlockMode roots (BlockParseState prevLines blockTabs) curr) (Line
           then newRootResult
           else lineModeResult
 
-parseModeStep st@(BlockMode roots (BlockParseState prevLines blockTabs) curr) (SectionStart n label) =
+parseModeStep st@(BlockMode roots (BlockParseState _ blockTabs) curr) (SectionStart n label) =
   let curTabs = modeCurTabs st
-      prevBlock = blockToNode prevLines
       curr' = addNode curr blockTabs $ leafNode label
   in
     if n - curTabs > 1
@@ -173,8 +174,8 @@ parseModeStep st@(BlockMode roots (BlockParseState prevLines blockTabs) curr) (S
 -- type ErrorMessage = String
 badTabs :: Int -> Int -> String
 badTabs expected found =
-  "can't accept a line with " ++ (show found) ++
-  " tabs at level " ++ (show expected)
+  "can't accept a line with " ++ show found ++
+  " tabs at level " ++ show expected
 
 -- entry point
 parseTextModal :: String -> [TodoGraph]
