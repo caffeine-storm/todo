@@ -11,6 +11,8 @@ newtype RootBlockParseState = RootBlockParseState [String]
   deriving(Show, Read, Eq)
 
 data ParseModeState =
+  -- TODO: why does RootLineMode or RootBlockMode need a list of previous
+  -- nodes? Aren't they only around for before-anythings-been parsed?
   RootLineMode [TodoGraph] |
   RootBlockMode [TodoGraph] RootBlockParseState |
   LineMode [TodoGraph] TodoGraph |
@@ -138,9 +140,14 @@ parseModeStep (LineMode roots curr) (Line n label) =
   case addNode curr n $ leafNode label of
     Right result -> LineMode roots result
     Left msg -> Failure msg
-
--- parseModeStep (LineMode roots curr) (SectionStart _ _) = TODO
--- parseModeStep (LineMode roots curr) (SectionContinue _ _) = TODO
+parseModeStep st@(LineMode roots curr) (SectionStart n label) =
+  if n - modeCurTabs st > 1
+    then Failure $ badTabs (modeCurTabs st) n
+    else BlockMode roots (BlockParseState [label] n) curr
+parseModeStep st@(LineMode _ _) (SectionContinue n label) =
+  if n - modeCurTabs st > 1
+    then Failure $ badTabs (modeCurTabs st) n
+    else parseModeStep st (Line n $ "  " ++ label)
 
 parseModeStep (BlockMode roots (BlockParseState prevLines blockTabs) curr) (Line n label) =
   let tabDelta = n - blockTabs

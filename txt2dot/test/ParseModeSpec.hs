@@ -192,3 +192,5 @@ spec = do
   describe "parseTextModal" $ do
     it "can handle an empty input stream" $ do
       parseTextModal "\n" `shouldSatisfy` null
+    it "can handle the old, problematic input" $ do
+      parseTextModal "foo\n\t- bar\n\t\tbaz" `shouldNotSatisfy` null
