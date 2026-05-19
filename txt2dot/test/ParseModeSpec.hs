@@ -44,9 +44,7 @@ arbitraryTodoGraph = QC.sized $ \n -> do
 
 arbitraryRootList :: QC.Gen [TodoGraph]
 arbitraryRootList = QC.sized $ \n -> do
-  if n == 0
-    then return []
-    else replicateM (decimate n) $ QC.scale decimate arbitraryTodoGraph
+  replicateM (decimate n) $ QC.scale decimate arbitraryTodoGraph
 
 arbitraryRootBlockMode :: QC.Gen ParseModeState
 arbitraryRootBlockMode = do
@@ -75,9 +73,7 @@ arbitraryBlockMode = QC.sized $ \n -> do
       return $ BlockMode roots (BlockParseState blockLines tabCount) current
 
 arbitraryFailure :: QC.Gen ParseModeState
-arbitraryFailure = do
-  msg <- QC.arbitrary
-  return $ Failure msg
+arbitraryFailure = fmap Failure QC.arbitrary
 
 arbitraryRootLineMode :: QC.Gen ParseModeState
 arbitraryRootLineMode = do
