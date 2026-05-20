@@ -173,8 +173,10 @@ parseModeStep st@(BlockMode roots (BlockParseState _ blockTabs) curr) (SectionSt
         Right good -> LineMode roots good
         Left msg -> Failure msg
 
--- parseModeStep st@(BlockMode roots prevLines curr) (SectionContinue n label) = TODO
-
+parseModeStep (BlockMode roots (BlockParseState labels nn) cur) (SectionContinue n label) =
+  if n - nn > 1
+    then Failure $ badTabs nn n
+    else BlockMode roots (BlockParseState (label:labels) nn) cur
 
 -- Error messages
 
