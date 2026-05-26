@@ -32,7 +32,7 @@ newRoot st@ParseState{} label@('\t':_) =
     then
       let oldRoots = roots st
           blockNode = blockToNode (currentBlock st)
-      in  addNode (st {roots=(blockNode:oldRoots), curTabs=0, currentBlock=[]}) label
+      in  addNode (st {roots=blockNode:oldRoots, curTabs=0, currentBlock=[]}) label
     else
       error "a root needs no leading tabs"
 
@@ -46,11 +46,11 @@ newRoot state@ParseState{currentBlock=[]} ('-':' ':label) =
 
 -- Handle start-of-another-block as root node
 newRoot state@ParseState{currentBlock=block} ('-':' ':label) =
-  state {roots=(blockToNode block):(roots state), currentBlock=[label], curTabs=0}
+  state {roots=blockToNode block:roots state, currentBlock=[label], curTabs=0}
 
 -- Handle block-continuation as part of root node
 newRoot state@ParseState{currentBlock=block} (' ':' ':label) =
-  state {currentBlock=(label:block), curTabs=0}
+  state {currentBlock=label:block, curTabs=0}
 
 -- Handle line as root node
 newRoot state label =
@@ -60,22 +60,21 @@ newRoot state label =
       else
         if isParsingBlock state
           then let blockNode = blockToNode (currentBlock state)
-               in  state {roots = newRootNode:blockNode:(roots state), curTabs=0, currentBlock=[]}
-          else state {roots = newRootNode:(roots state), curTabs=0}
+               in  state {roots = newRootNode:blockNode:roots state, curTabs=0, currentBlock=[]}
+          else state {roots = newRootNode:roots state, curTabs=0}
 
 addNode :: ParseState -> String -> ParseState
 addNode st@ParseState{roots=[]} label =
   newRoot st label
-addNode st@ParseState{roots=(r:rs)} label =
-  if newDepth == 0
-    then newRoot st label
-    else if isParsingBlock st
-      then if "  " `isPrefixOf` newLabel
-        then st {currentBlock=((drop 2 newLabel):currentBlock st)}
-        else finishParsingBlock'
-      else if "- " `isPrefixOf` newLabel
-        then startParsingBlock'
-        else st {roots=(r':rs), curTabs=newDepth}
+addNode st@ParseState{roots=(r:rs)} label
+  | newDepth == 0 = newRoot st label
+  | isParsingBlock st
+  = if "  " `isPrefixOf` newLabel then
+        st {currentBlock = drop 2 newLabel : currentBlock st}
+    else
+        finishParsingBlock'
+  | "- " `isPrefixOf` newLabel = startParsingBlock'
+  | otherwise = st {roots = r' : rs, curTabs = newDepth}
   where
     (newDepth, newNode) = leafNode' label
     newLabel = nodeLabel newNode
@@ -84,7 +83,7 @@ addNode st@ParseState{roots=(r:rs)} label =
     unlines' = init . unlines
 
     (_, sectionLeaf) = leafNode' $ unlines' $ reverse $ currentBlock st
-    finishParsingBlock' = st {roots=(r'':rs), currentBlock=[]}
+    finishParsingBlock' = st {roots=r'':rs, currentBlock=[]}
     r' = addNode' newNode newDepth r
     -- TODO: curTabs st, instead of newDepth, I think?
     r'' = addNode' newNode newDepth (addNode' sectionLeaf (curTabs st) r)
@@ -96,9 +95,9 @@ addNode st@ParseState{roots=(r:rs)} label =
     addNode' noob 1 existingNode =
       appendChild existingNode noob
     addNode' noob depth (TodoNode lbl kids) =
-      let target = head $ kids
+      let target = head kids
           replacement = addNode' noob (pred depth) target
-      in  TodoNode lbl (replacement:(tail kids))
+      in  TodoNode lbl (replacement:tail kids)
 
 reverseAll :: [TodoGraph] -> [TodoGraph]
 reverseAll lst =
@@ -115,14 +114,14 @@ getGraph ParseState{roots=many} = Just $ TodoNode "" (reverseAll many)
 debugShow :: String -> String
 debugShow "" = ""
 debugShow ('\t':cs) = "\\t" ++ debugShow cs
-debugShow (c:cs) = [c] ++ debugShow cs
+debugShow (c:cs) = c:debugShow cs
 
 syntaxError :: String -> Int -> Int -> a
 syntaxError line lineTabs ctxTabs =
   error $
-    "bad syntax; line had depth " ++ (show lineTabs) ++
-    " in a context of depth " ++ (show ctxTabs) ++
-    "\n" ++ (debugShow line)
+    "bad syntax; line had depth " ++ show lineTabs ++
+    " in a context of depth " ++ show ctxTabs ++
+    "\n" ++ debugShow line
 
 parseLine :: ParseState -> String -> ParseState
 parseLine st line =
@@ -152,17 +151,17 @@ escapeString :: String -> String
 escapeString "" = ""
 escapeString ('\\':rest) = "\\\\" ++ escapeString rest
 escapeString ('"':rest) = "\\\"" ++ escapeString rest
-escapeString (x:rest) = (x:escapeString rest)
+escapeString (x:rest) = x:escapeString rest
 
 quoted :: String -> String
 quoted s = concat ["\"", escapeString s, "\""]
 
 instance Show ShowStateNode where
-  show (ShowStateNode nodeId label) = concat [(quoted nodeId), " [label=", quoted label, "];"]
+  show (ShowStateNode nodeId label) = concat [quoted nodeId, " [label=", quoted label, "];"]
 
 data ShowStateEdge = ShowStateEdge NodeId NodeId
 instance Show ShowStateEdge where
-  show (ShowStateEdge lhs rhs) = concat [(quoted lhs), " -> ", (quoted rhs), ";"]
+  show (ShowStateEdge lhs rhs) = concat [quoted lhs, " -> ", quoted rhs, ";"]
 
 data ShowState = ShowState {
   nodes :: [ShowStateNode],
@@ -188,16 +187,16 @@ mintNextId :: ShowState -> (NodeId, ShowState)
 mintNextId ShowState{nextId = []} = error "malformed ShowState; nextId must be non-empty!"
 mintNextId st@ShowState{ nextId=(used:rest) } =
   let siblingPosition = succ used
-      newid = intercalate "_" $ reverse $ map show $ (siblingPosition:rest)
+      newid = intercalate "_" $ reverse $ map show (siblingPosition:rest)
   in  (newid, st { nextId = siblingPosition:rest })
 
 addLevel :: ShowState -> ShowState
 addLevel st@ShowState{ nextId=idgen } =
-  st { nextId = (0:idgen) }
+  st { nextId = 0:idgen }
 
 popLevel :: ShowState -> ShowState
 popLevel st@ShowState{ nextId=(_:xs:xss) } =
-  st { nextId = (xs:xss) }
+  st { nextId = xs:xss }
 popLevel _ = error "can only popLevel from non-root level"
 
 getDot :: ShowState -> String
@@ -213,10 +212,12 @@ writeDot :: TodoGraph -> String
 -- TODO: subgraphs? each root should be a subgraph, right?
 writeDot g = getDot $ writeNodes [g]
 
-writeNodes :: [TodoGraph] -> ShowState
-writeNodes kids = foldl (\st -> writeNode' st 0) newShowState kids 
+writeDot' :: [TodoGraph] -> String
+writeDot' gs = getDot $ writeNodes gs
 
--- TODO: depth is not used... ?
+writeNodes :: [TodoGraph] -> ShowState
+writeNodes = foldl (`writeNode'` 0) newShowState
+
 writeNode' :: ShowState -> Int -> TodoGraph -> ShowState
 writeNode' st depth (TodoNode parentLabel kids) =
   let
@@ -231,8 +232,8 @@ addNodeWithLabel :: ShowState -> String -> (ShowState, NodeId)
 addNodeWithLabel st lbl =
   let (nodeId, st') = mintNextId st
       newNode = ShowStateNode nodeId lbl
-  in  (st' { nodes = newNode:(nodes st) }, nodeId)
+  in  (st' { nodes = newNode:nodes st }, nodeId)
 
 addEdges :: ShowState -> NodeId -> [TodoGraph] -> ShowState
 addEdges st parent kids =
-  st { edges = [ShowStateEdge parent kidId | kidId <- [parent ++ "_" ++ (show n) | n <- [1 .. length kids]]] ++ (edges st) }
+  st { edges = [ShowStateEdge parent kidId | kidId <- [parent ++ "_" ++ show n | n <- [1 .. length kids]]] ++ edges st }
