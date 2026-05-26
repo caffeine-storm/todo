@@ -23,12 +23,12 @@ appendChild (TodoNode lbl kids) newKid =
 appendDescendant :: TodoGraph -> Int -> TodoGraph -> TodoGraph
 appendDescendant base 0 newNode =
   appendChild base newNode
-appendDescendant (TodoNode _ []) depth _ = error $ "can't appendDescendant to depth " ++ (show depth) ++ " without children in the 'base' node"
+appendDescendant (TodoNode _ []) depth _ = error $ "can't appendDescendant to depth " ++ show depth ++ " without children in the 'base' node"
 appendDescendant (TodoNode lbl (leadingChild:kids)) depth newNode =
-  TodoNode lbl $ (appendDescendant leadingChild (pred depth) newNode):kids
+  TodoNode lbl $ appendDescendant leadingChild (pred depth) newNode:kids
 
 graphForRootList :: [TodoGraph] -> TodoGraph
-graphForRootList roots = TodoNode "" roots
+graphForRootList = TodoNode ""
 
 blockToNode :: [String] -> TodoGraph
 blockToNode = leafNode . init . unlines . reverse
