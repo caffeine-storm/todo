@@ -19,7 +19,7 @@ isLineMode _ = False
 
 isBlockMode :: ParseModeState -> Bool
 isBlockMode (BlockMode {}) = True
-isBlockMode (RootBlockMode _ _) = True
+isBlockMode (RootBlockMode _) = True
 isBlockMode _ = False
 
 nonNegative :: Int -> Int
@@ -47,10 +47,8 @@ arbitraryRootList = QC.sized $ \n -> do
   replicateM (decimate n) $ QC.scale decimate arbitraryTodoGraph
 
 arbitraryRootBlockMode :: QC.Gen ParseModeState
-arbitraryRootBlockMode = do
-  contextLines <- QC.arbitrary
-  roots <- QC.scale decimate arbitraryRootList
-  return $ RootBlockMode roots (RootBlockParseState contextLines)
+arbitraryRootBlockMode =
+  RootBlockMode . RootBlockParseState <$> QC.arbitrary
 
 arbitraryLineMode :: QC.Gen ParseModeState
 arbitraryLineMode = QC.sized $ \n -> do
@@ -76,9 +74,7 @@ arbitraryFailure :: QC.Gen ParseModeState
 arbitraryFailure = fmap Failure QC.arbitrary
 
 arbitraryRootLineMode :: QC.Gen ParseModeState
-arbitraryRootLineMode = do
-  roots <- QC.scale decimate arbitraryRootList
-  return $ RootLineMode roots
+arbitraryRootLineMode = return RootLineMode
 
 newtype MyParseState = MyParseState {unwrap :: ParseModeState}
   deriving (Show, Read, Eq)
@@ -98,8 +94,8 @@ instance QC.Arbitrary MyParseState where
 -- TODO: implement shrink?
 
 whichCtor :: MyParseState -> String
-whichCtor MyParseState {unwrap = (RootLineMode _)} = "RootLineMode"
-whichCtor MyParseState {unwrap = (RootBlockMode _ _)} = "RootBlockMode"
+whichCtor MyParseState {unwrap = RootLineMode} = "RootLineMode"
+whichCtor MyParseState {unwrap = (RootBlockMode _)} = "RootBlockMode"
 whichCtor MyParseState {unwrap = (LineMode _ _)} = "LineMode"
 whichCtor MyParseState {unwrap = (BlockMode {})} = "BlockMode"
 whichCtor MyParseState {unwrap = (Failure _)} = "Failure"
@@ -112,21 +108,23 @@ spec :: Spec
 spec = do
   let st0 = newParseModeState
       someLeaf = leafNode "some label"
-      rootLineModeState = RootLineMode [someLeaf]
+      rootLineModeState = RootLineMode
       lineModeState = LineMode [someLeaf] someLeaf
-      rootBlockModeState = RootBlockMode [someLeaf] (RootBlockParseState ["block states need context lines"])
+      rootBlockModeState = RootBlockMode (RootBlockParseState ["block states need context lines"])
       blockModeState = BlockMode [someLeaf] (BlockParseState ["block states need context lines"] 0) someLeaf
   describe "addNode" $ do
+    it "can 'replace' the given node" $ do
+      addNode (TodoNode "foo" []) 0 (leafNode "bar") `shouldBe` Right (TodoNode "bar" [])
     it "can add a new level" $ do
       addNode (TodoNode "foo" []) 1 (leafNode "bar") `shouldBe` Right (TodoNode "foo" [TodoNode "bar" []])
 
   describe "with a new state" $ do
     it "starts out empty" $ do
       modeRoots st0 `shouldBe` []
-      modeGetGraph st0 `shouldBe` Nothing
+      modeGetGraph st0 `shouldBe` Just []
 
     it "accepts a root-node line" $ do
-      parseModeStep st0 (Line 0 $ nodeLabel someLeaf) `shouldSatisfy` isLineMode
+      parseModeStep st0 (Line 0 $ getLabel someLeaf) `shouldSatisfy` isLineMode
     it "accepts a root-node block-start" $ do
       parseModeStep st0 (SectionStart 0 "foo") `shouldSatisfy` isBlockMode
     it "accepts an orphaned block-continuation at the root as a line" $ do
@@ -135,7 +133,7 @@ spec = do
       parseModeStep st0 Skip `shouldBe` st0
 
     it "rejects leading tabs" $ do
-      parseModeStep st0 (Line 3 $ nodeLabel someLeaf) `shouldSatisfy` isFailure
+      parseModeStep st0 (Line 3 $ getLabel someLeaf) `shouldSatisfy` isFailure
   describe "for any state" $ do
     HspecQC.prop "is unchanged by 'Skip'able input" $
       \someState ->
@@ -144,8 +142,8 @@ spec = do
             (parseModeStep . unwrap) someState Skip `shouldBe` (unwrap someState :: ParseModeState)
 
   describe "in RootLineMode" $ do
-    it "can yield a graph" $ do
-      modeGetGraph rootLineModeState `shouldNotBe` Nothing
+    it "will yield 'no-graph'" $ do
+      modeGetGraph rootLineModeState `shouldBe` Just []
     describe "it can read more" $ do
       it "as a sibling line" $ do
         parseModeStep rootLineModeState (Line 0 "sibling") `shouldSatisfy` isLineMode
@@ -187,6 +185,6 @@ spec = do
 
   describe "parseTextModal" $ do
     it "can handle an empty input stream" $ do
-      parseTextModal "\n" `shouldSatisfy` null
+      parseTextModal "\n" `shouldBe` Just []
     it "can handle the old, problematic input" $ do
       parseTextModal "foo\n\t- bar\n\t\tbaz" `shouldNotSatisfy` null

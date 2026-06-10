@@ -5,8 +5,11 @@ import ParseLine (leadingTabCount)
 data TodoGraph = TodoNode String [TodoGraph]
     deriving(Eq, Show, Read)
 
-nodeLabel :: TodoGraph -> String
-nodeLabel (TodoNode lbl _) = lbl
+getChildren :: TodoGraph -> [TodoGraph]
+getChildren (TodoNode _ kids) = kids
+
+getLabel :: TodoGraph -> String
+getLabel (TodoNode lbl _) = lbl
 
 leafNode :: String -> TodoGraph
 leafNode lbl = TodoNode lbl []
@@ -15,6 +18,10 @@ leafNode' :: String -> (Int, TodoGraph)
 leafNode' lbl =
     let tabs = leadingTabCount lbl
     in  (tabs, TodoNode (drop tabs lbl) [])
+
+leadingEdgeDepth :: TodoGraph -> Int
+leadingEdgeDepth (TodoNode _ []) = 1
+leadingEdgeDepth (TodoNode _ (x:_)) = 1 + leadingEdgeDepth x
 
 appendChild :: TodoGraph -> TodoGraph -> TodoGraph
 appendChild (TodoNode lbl kids) newKid =
@@ -27,8 +34,8 @@ appendDescendant (TodoNode _ []) depth _ = error $ "can't appendDescendant to de
 appendDescendant (TodoNode lbl (leadingChild:kids)) depth newNode =
   TodoNode lbl $ appendDescendant leadingChild (pred depth) newNode:kids
 
-graphForRootList :: [TodoGraph] -> TodoGraph
-graphForRootList = TodoNode ""
-
 blockToNode :: [String] -> TodoGraph
 blockToNode = leafNode . init . unlines . reverse
+
+mirrorNodes :: TodoGraph -> TodoGraph
+mirrorNodes (TodoNode lbl kids) = TodoNode lbl $ reverse $ map mirrorNodes kids

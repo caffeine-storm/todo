@@ -3,7 +3,7 @@ module RegressionSpec (spec) where
 import Control.Monad (forM_)
 
 import Test.Hspec
-import Txt2Dot
+import ParseMode(parseTextModal)
 
 validCases :: [String]
 validCases = [regr1, regr2, regr3, regr4]
@@ -21,15 +21,14 @@ regr3 :: String
 regr3 = "- foo\n\tbaz"
 
 regr4 :: String
---regr4 = "- foo\n\t- bar\n\t\tbaz"
-regr4 = "- foo\n\t- bar\n\tbaz"
+regr4 = "- foo\n\t- bar\n\t\tbaz"
 
 spec :: Spec
 spec =
   describe "must not happen anymore" $ do
     it "should accept valid inputs (that used to be rejected)" $ do
-      forM_ validCases $ \tcase ->
-        (parseText tcase) `shouldNotBe` Nothing
+      forM_ validCases $ \tcase -> do
+        parseTextModal tcase `shouldNotBe` Nothing
     it "should reject invalid inputs (that is used to accept)" $ do
-      forM_ invalidCases $ \tcase ->
-        (parseText tcase) `shouldBe` Nothing
+      forM_ invalidCases $ \tcase -> do
+        parseTextModal tcase `shouldBe` Nothing

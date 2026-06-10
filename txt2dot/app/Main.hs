@@ -1,11 +1,13 @@
 module Main where
 
-import Data.Maybe (fromJust)
+import qualified ParseMode
 import qualified Txt2Dot
 
 main :: IO ()
 main = do
     inputData <- readFile "/dev/stdin"
-    let graph = fromJust $ Txt2Dot.parseText inputData
-        asDotText = Txt2Dot.writeDot graph
+    let graphs = case ParseMode.parseTextModal inputData of
+                    Nothing -> error "couldn't parse input as graph"
+                    Just graphs -> graphs
+        asDotText = Txt2Dot.writeDot' graphs
     writeFile "/dev/stdout" (asDotText ++ "\n")

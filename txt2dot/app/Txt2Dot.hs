@@ -1,7 +1,6 @@
 module Txt2Dot where
 
 import Data.List (intercalate, isPrefixOf)
-import Data.Char (isSpace)
 
 import ParseLine (leadingTabCount)
 import TodoGraph
@@ -77,7 +76,7 @@ addNode st@ParseState{roots=(r:rs)} label
   | otherwise = st {roots = r' : rs, curTabs = newDepth}
   where
     (newDepth, newNode) = leafNode' label
-    newLabel = nodeLabel newNode
+    newLabel = getLabel newNode
     -- drop a trailing newline from typical 'unlines'
     unlines' :: [String] -> String
     unlines' = init . unlines
@@ -130,17 +129,6 @@ parseLine st line =
       delta = currIndent - pastIndent
   in  if delta > 1 then syntaxError line currIndent pastIndent
       else addNode st line
-
-parseText :: String -> Maybe TodoGraph
-parseText input =
-  let lastState = foldl parseLine newParseState $ filter (not . isNoise) $ lines input
-      finalState = if isParsingBlock lastState
-          then addNode (lastState {currentBlock=[]}) $ nodeLabel $ blockToNode $ currentBlock lastState
-          else lastState
-  in  getGraph finalState
-  where
-    isNoise :: String -> Bool
-    isNoise = all isSpace
 
 type NodeId = String
 type LabelString = String
